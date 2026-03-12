@@ -17,13 +17,15 @@ public sealed class AnalysisService(
 {
     public async Task<AnalysisResultModel> ComparePapersAsync(ComparePapersCommand command, CancellationToken cancellationToken)
     {
-        var papers = await dbContext.Papers
+        var papersById = await dbContext.Papers
             .AsNoTracking()
             .Where(p => p.Id == command.LeftPaperId || p.Id == command.RightPaperId)
-            .ToListAsync(cancellationToken);
+            .ToDictionaryAsync(p => p.Id, cancellationToken);
 
-        var left = papers.FirstOrDefault(p => p.Id == command.LeftPaperId) ?? throw new NotFoundException(nameof(Paper), command.LeftPaperId);
-        var right = papers.FirstOrDefault(p => p.Id == command.RightPaperId) ?? throw new NotFoundException(nameof(Paper), command.RightPaperId);
+        if (!papersById.TryGetValue(command.LeftPaperId, out var left))
+            throw new NotFoundException(nameof(Paper), command.LeftPaperId);
+        if (!papersById.TryGetValue(command.RightPaperId, out var right))
+            throw new NotFoundException(nameof(Paper), command.RightPaperId);
 
         var commonTheme = InferCommonTheme(left.Title, right.Title);
 

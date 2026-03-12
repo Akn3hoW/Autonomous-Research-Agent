@@ -25,7 +25,7 @@ internal static class VectorMath
             return 0d;
         }
 
-        return dot / (Math.Sqrt(leftMagnitude) * Math.Sqrt(rightMagnitude));
+        return dot / Math.Sqrt(leftMagnitude * rightMagnitude);
     }
 }
 

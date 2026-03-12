@@ -19,26 +19,25 @@ public sealed class SearchService(
         var pattern = QueryHelpers.ToILikePattern(request.Query);
         var filteredQuery = dbContext.Papers
             .AsNoTracking()
-            .Where(p =>
-                EF.Functions.ILike(p.Title, pattern) ||
-                (p.Abstract != null && EF.Functions.ILike(p.Abstract, pattern)) ||
-                p.Summaries.Any(s => s.SearchText != null && EF.Functions.ILike(s.SearchText, pattern)));
-
-        var rankedQuery = filteredQuery
             .Select(p => new
             {
                 Paper = p,
                 MatchedInTitle = EF.Functions.ILike(p.Title, pattern),
                 MatchedInAbstract = p.Abstract != null && EF.Functions.ILike(p.Abstract, pattern),
                 MatchedInSummary = p.Summaries.Any(s => s.SearchText != null && EF.Functions.ILike(s.SearchText, pattern)),
-                Score =
-                    (EF.Functions.ILike(p.Title, pattern) ? 1.0 : 0.0) +
-                    ((p.Abstract != null && EF.Functions.ILike(p.Abstract, pattern)) ? 0.6 : 0.0) +
-                    (p.Summaries.Any(s => s.SearchText != null && EF.Functions.ILike(s.SearchText, pattern)) ? 0.4 : 0.0)
-            });
+            })
+            .Where(x => x.MatchedInTitle || x.MatchedInAbstract || x.MatchedInSummary);
 
         var totalCount = await filteredQuery.LongCountAsync(cancellationToken);
-        var rankedPapers = await rankedQuery
+        var rankedPapers = await filteredQuery
+            .Select(x => new
+            {
+                x.Paper,
+                x.MatchedInTitle,
+                x.MatchedInAbstract,
+                x.MatchedInSummary,
+                Score = (x.MatchedInTitle ? 1.0 : 0.0) + (x.MatchedInAbstract ? 0.6 : 0.0) + (x.MatchedInSummary ? 0.4 : 0.0)
+            })
             .OrderByDescending(x => x.Score)
             .ThenByDescending(x => x.Paper.UpdatedAt)
             .Skip((request.PageNumber - 1) * request.PageSize)
