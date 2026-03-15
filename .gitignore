@@ -5,4 +5,24 @@ obj/
 *.user
 *.suo
 TestResults/
+.playwright-mcp/
+node_modules/
+
+# Environment and secrets
+.env
+.env.*
+
+# Claude Code
+CLAUDE.md
+.claude/
+
+# Data
+data/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Frontend build output
+frontend/dist/
 

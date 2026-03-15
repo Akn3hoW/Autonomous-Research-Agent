@@ -1,4 +1,5 @@
 using AutonomousResearchAgent.Application.Analysis;
+using AutonomousResearchAgent.Application.Documents;
 using AutonomousResearchAgent.Application.Jobs;
 using AutonomousResearchAgent.Application.Papers;
 using AutonomousResearchAgent.Application.Summaries;
@@ -37,6 +38,25 @@ internal static class ModelMappingExtensions
             JsonNodeMapper.Deserialize(paper.MetadataJson),
             paper.CreatedAt,
             paper.UpdatedAt);
+
+
+    public static PaperDocumentModel ToModel(this PaperDocument document) =>
+        new(
+            document.Id,
+            document.PaperId,
+            document.SourceUrl,
+            document.FileName,
+            document.MediaType,
+            document.StoragePath,
+            document.Status,
+            document.RequiresOcr,
+            document.ExtractedText,
+            JsonNodeMapper.Deserialize(document.MetadataJson),
+            document.LastError,
+            document.DownloadedAt,
+            document.ExtractedAt,
+            document.CreatedAt,
+            document.UpdatedAt);
 
     public static SummaryModel ToModel(this PaperSummary summary) =>
         new(

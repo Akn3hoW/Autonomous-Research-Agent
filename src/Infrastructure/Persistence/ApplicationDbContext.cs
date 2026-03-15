@@ -8,13 +8,23 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<Paper> Papers => Set<Paper>();
     public DbSet<PaperSummary> PaperSummaries => Set<PaperSummary>();
     public DbSet<PaperEmbedding> PaperEmbeddings => Set<PaperEmbedding>();
+    public DbSet<PaperDocument> PaperDocuments => Set<PaperDocument>();
     public DbSet<Job> Jobs => Set<Job>();
     public DbSet<AnalysisResult> AnalysisResults => Set<AnalysisResult>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasPostgresExtension("vector");
+        if (Database.ProviderName == "Npgsql.EntityFrameworkCore.PostgreSQL")
+        {
+            modelBuilder.HasPostgresExtension("vector");
+        }
+
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+
+        if (Database.ProviderName != "Npgsql.EntityFrameworkCore.PostgreSQL")
+        {
+            modelBuilder.Entity<PaperEmbedding>().Ignore(x => x.Vector);
+        }
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -47,4 +57,3 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         }
     }
 }
-

@@ -39,7 +39,7 @@ public sealed class CreateImportJobRequest
 public sealed class CreateSummarizeJobRequest
 {
     public Guid PaperId { get; init; }
-    public string ModelName { get; init; } = string.Empty;
+    public string ModelName { get; init; } = "openrouter/hunter-alpha";
     public string PromptVersion { get; init; } = string.Empty;
 }
 

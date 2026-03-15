@@ -18,5 +18,6 @@ public sealed class Paper : AuditableEntity
 
     public ICollection<PaperSummary> Summaries { get; set; } = [];
     public ICollection<PaperEmbedding> Embeddings { get; set; } = [];
+    public ICollection<PaperDocument> Documents { get; set; } = [];
 }
 

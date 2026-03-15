@@ -1,11 +1,13 @@
 using AutonomousResearchAgent.Api.Contracts.Analysis;
 using AutonomousResearchAgent.Api.Contracts.Common;
+using AutonomousResearchAgent.Api.Contracts.Documents;
 using AutonomousResearchAgent.Api.Contracts.Jobs;
 using AutonomousResearchAgent.Api.Contracts.Papers;
 using AutonomousResearchAgent.Api.Contracts.Search;
 using AutonomousResearchAgent.Api.Contracts.Summaries;
 using AutonomousResearchAgent.Application.Analysis;
 using AutonomousResearchAgent.Application.Common;
+using AutonomousResearchAgent.Application.Documents;
 using AutonomousResearchAgent.Application.Jobs;
 using AutonomousResearchAgent.Application.Papers;
 using AutonomousResearchAgent.Application.Search;
@@ -62,6 +64,12 @@ public static class ContractMappingExtensions
     public static ImportPapersCommand ToApplicationModel(this ImportPapersRequest request) =>
         new(request.Queries, request.Limit, request.StoreImportedPapers);
 
+    public static CreatePaperDocumentCommand ToApplicationModel(this CreatePaperDocumentRequest request, Guid paperId) =>
+        new(paperId, request.SourceUrl, request.FileName, request.MediaType, request.RequiresOcr, request.Metadata);
+
+    public static QueuePaperDocumentProcessingCommand ToApplicationModel(this QueuePaperDocumentProcessingRequest request, string? requestedBy) =>
+        new(requestedBy, request.Force);
+
     public static CreateSummaryCommand ToApplicationModel(this CreateSummaryRequest request, Guid paperId) =>
         new(
             paperId,
@@ -112,6 +120,9 @@ public static class ContractMappingExtensions
 
     public static ImportPapersResponse ToDto(this ImportPapersResult result) =>
         new(result.Papers.Select(p => p.ToDto()).ToList(), result.ImportedCount);
+
+    public static PaperDocumentDto ToDto(this PaperDocumentModel model) =>
+        new(model.Id, model.PaperId, model.SourceUrl, model.FileName, model.MediaType, model.StoragePath, model.Status.ToString(), model.RequiresOcr, model.ExtractedText, model.Metadata, model.LastError, model.DownloadedAt, model.ExtractedAt, model.CreatedAt, model.UpdatedAt);
 
     public static SummaryDto ToDto(this SummaryModel model) =>
         new(model.Id, model.PaperId, model.ModelName, model.PromptVersion, model.Status.ToString(), model.Summary, model.ReviewedBy, model.ReviewedAt, model.ReviewNotes, model.CreatedAt, model.UpdatedAt);

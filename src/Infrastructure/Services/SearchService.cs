@@ -17,12 +17,16 @@ public sealed class SearchService(
     public async Task<PagedResult<SearchResultModel>> SearchAsync(SearchRequestModel request, CancellationToken cancellationToken)
     {
         var pattern = QueryHelpers.ToILikePattern(request.Query);
+
         var filteredQuery = dbContext.Papers
             .AsNoTracking()
             .Where(p =>
                 EF.Functions.ILike(p.Title, pattern) ||
                 (p.Abstract != null && EF.Functions.ILike(p.Abstract, pattern)) ||
-                p.Summaries.Any(s => s.SearchText != null && EF.Functions.ILike(s.SearchText, pattern)));
+                p.Summaries.Any(s => s.SearchText != null && EF.Functions.ILike(s.SearchText, pattern)) ||
+                p.Documents.Any(d => d.ExtractedText != null && EF.Functions.ILike(d.ExtractedText, pattern)));
+
+        var totalCount = await filteredQuery.LongCountAsync(cancellationToken);
 
         var rankedQuery = filteredQuery
             .Select(p => new
@@ -31,13 +35,14 @@ public sealed class SearchService(
                 MatchedInTitle = EF.Functions.ILike(p.Title, pattern),
                 MatchedInAbstract = p.Abstract != null && EF.Functions.ILike(p.Abstract, pattern),
                 MatchedInSummary = p.Summaries.Any(s => s.SearchText != null && EF.Functions.ILike(s.SearchText, pattern)),
+                MatchedInDocument = p.Documents.Any(d => d.ExtractedText != null && EF.Functions.ILike(d.ExtractedText, pattern)),
                 Score =
                     (EF.Functions.ILike(p.Title, pattern) ? 1.0 : 0.0) +
                     ((p.Abstract != null && EF.Functions.ILike(p.Abstract, pattern)) ? 0.6 : 0.0) +
-                    (p.Summaries.Any(s => s.SearchText != null && EF.Functions.ILike(s.SearchText, pattern)) ? 0.4 : 0.0)
+                    (p.Summaries.Any(s => s.SearchText != null && EF.Functions.ILike(s.SearchText, pattern)) ? 0.4 : 0.0) +
+                    (p.Documents.Any(d => d.ExtractedText != null && EF.Functions.ILike(d.ExtractedText, pattern)) ? 0.5 : 0.0)
             });
 
-        var totalCount = await filteredQuery.LongCountAsync(cancellationToken);
         var rankedPapers = await rankedQuery
             .OrderByDescending(x => x.Score)
             .ThenByDescending(x => x.Paper.UpdatedAt)
@@ -46,7 +51,7 @@ public sealed class SearchService(
             .ToListAsync(cancellationToken);
 
         var items = rankedPapers
-            .Select(x => ToKeywordResult(x.Paper, request.Query, x.Score, x.MatchedInTitle, x.MatchedInAbstract, x.MatchedInSummary))
+            .Select(x => ToKeywordResult(x.Paper, request.Query, x.Score, x.MatchedInTitle, x.MatchedInAbstract, x.MatchedInSummary, x.MatchedInDocument))
             .ToList();
 
         return new PagedResult<SearchResultModel>(items, request.PageNumber, request.PageSize, totalCount);
@@ -60,6 +65,7 @@ public sealed class SearchService(
             .AsNoTracking()
             .Include(e => e.Paper)
             .Where(e => e.PaperId != null && e.Paper != null && e.Vector != null && e.EmbeddingType == EmbeddingType.PaperAbstract)
+            .Take(request.MaxCandidates)
             .ToListAsync(cancellationToken);
 
         if (candidates.Count == 0)
@@ -78,7 +84,7 @@ public sealed class SearchService(
             .Select(e => new
             {
                 Embedding = e,
-                Score = e.Vector is null ? 0d : VectorMath.CosineSimilarity(queryEmbedding, e.Vector)
+                Score = e.Vector is null ? 0d : VectorMath.CosineSimilarity(e.Vector, queryEmbedding)
             })
             .OrderByDescending(x => x.Score)
             .ToList();
@@ -86,11 +92,11 @@ public sealed class SearchService(
         var totalCount = ranked.Count;
 
         var limitedRanked = ranked
-            .Take(request.MaxCandidates)
-            .ToList();
-        var pageItems = limitedRanked
             .Skip((request.PageNumber - 1) * request.PageSize)
             .Take(request.PageSize)
+            .ToList();
+
+        var pageItems = limitedRanked
             .Select(x => new SearchResultModel(
                 x.Embedding.Paper!.Id,
                 x.Embedding.Paper.Title,
@@ -160,7 +166,8 @@ public sealed class SearchService(
         double score,
         bool matchedInTitle,
         bool matchedInAbstract,
-        bool matchedInSummary)
+        bool matchedInSummary,
+        bool matchedInDocument)
     {
         var lowered = query.Trim().ToLowerInvariant();
 
@@ -178,7 +185,8 @@ public sealed class SearchService(
                 ["query"] = lowered,
                 ["matchedInTitle"] = matchedInTitle,
                 ["matchedInAbstract"] = matchedInAbstract,
-                ["matchedInSummary"] = matchedInSummary
+                ["matchedInSummary"] = matchedInSummary,
+                ["matchedInDocument"] = matchedInDocument
             });
     }
 }

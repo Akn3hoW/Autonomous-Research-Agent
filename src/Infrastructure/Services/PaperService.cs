@@ -1,4 +1,6 @@
+using System.Text.Json.Nodes;
 using AutonomousResearchAgent.Application.Common;
+using AutonomousResearchAgent.Application.Jobs;
 using AutonomousResearchAgent.Application.Papers;
 using AutonomousResearchAgent.Domain.Entities;
 using AutonomousResearchAgent.Domain.Enums;
@@ -11,6 +13,7 @@ namespace AutonomousResearchAgent.Infrastructure.Services;
 public sealed class PaperService(
     ApplicationDbContext dbContext,
     ISemanticScholarClient semanticScholarClient,
+    IJobService jobService,
     ILogger<PaperService> logger) : IPaperService
 {
     public async Task<PagedResult<PaperListItem>> ListAsync(PaperQuery query, CancellationToken cancellationToken)
@@ -182,7 +185,22 @@ public sealed class PaperService(
             .Where(p => p.Doi != null)
             .ToDictionary(p => p.Doi!);
 
+        var candidatePdfUrls = imported
+            .Select(c => c.Metadata?["openAccessPdfUrl"]?.GetValue<string>())
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .ToHashSet();
+
+        var existingDocUrls = candidatePdfUrls.Count > 0
+            ? (await dbContext.PaperDocuments
+                .Where(d => candidatePdfUrls.Contains(d.SourceUrl))
+                .Select(d => new { d.PaperId, d.SourceUrl })
+                .ToListAsync(cancellationToken))
+                .Select(d => (d.PaperId, d.SourceUrl))
+                .ToHashSet()
+            : new HashSet<(Guid, string)>();
+
         var results = new List<PaperDetail>();
+        var queuedDocuments = new List<PaperDocument>();
         var newCount = 0;
 
         foreach (var candidate in imported)
@@ -214,16 +232,67 @@ public sealed class PaperService(
                 ApplyImportFields(existing, candidate);
             }
 
+            if (command.StoreImportedPapers)
+            {
+                var attachedDocument = TryAttachImportedDocument(existing, candidate, existingDocUrls);
+                if (attachedDocument is not null)
+                {
+                    queuedDocuments.Add(attachedDocument);
+                }
+            }
+
             results.Add(existing.ToDetail());
         }
 
         if (command.StoreImportedPapers)
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+
+            foreach (var document in queuedDocuments)
+            {
+                document.Status = PaperDocumentStatus.Queued;
+                document.LastError = null;
+
+                await jobService.CreateAsync(
+                    new CreateJobCommand(JobType.ProcessPaperDocument, PaperDocumentJobPayload.Create(document), document.Id, "system-import"),
+                    cancellationToken);
+            }
+
+            if (queuedDocuments.Count > 0)
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
         }
 
         logger.LogInformation("Imported {Count} papers ({New} new) from Semantic Scholar", results.Count, newCount);
         return new ImportPapersResult(results, newCount);
+    }
+
+
+    private PaperDocument? TryAttachImportedDocument(Paper paper, SemanticScholarPaperImportModel candidate, HashSet<(Guid PaperId, string SourceUrl)> existingDocUrls)
+    {
+        var openAccessPdfUrl = candidate.Metadata?["openAccessPdfUrl"]?.GetValue<string>();
+        if (string.IsNullOrWhiteSpace(openAccessPdfUrl))
+        {
+            return null;
+        }
+
+        if (existingDocUrls.Contains((paper.Id, openAccessPdfUrl)))
+        {
+            return null;
+        }
+
+        var document = new PaperDocument
+        {
+            PaperId = paper.Id,
+            SourceUrl = openAccessPdfUrl,
+            FileName = $"{paper.Id:N}.pdf",
+            MediaType = "application/pdf",
+            Status = PaperDocumentStatus.Pending
+        };
+
+        dbContext.PaperDocuments.Add(document);
+        return document;
     }
 
     private static void ApplyImportFields(Paper entity, SemanticScholarPaperImportModel candidate)

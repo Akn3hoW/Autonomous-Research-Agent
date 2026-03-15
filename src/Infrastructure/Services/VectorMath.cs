@@ -1,6 +1,6 @@
 namespace AutonomousResearchAgent.Infrastructure.Services;
 
-internal static class VectorMath
+public static class VectorMath
 {
     public static double CosineSimilarity(float[] left, float[] right)
     {

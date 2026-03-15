@@ -5,6 +5,7 @@ public enum JobType
     ImportPapers = 0,
     SummarizePaper = 1,
     GenerateEmbeddings = 2,
-    Analysis = 3
+    Analysis = 3,
+    ProcessPaperDocument = 4
 }
 
