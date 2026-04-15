@@ -25,6 +25,7 @@ const routes = [
   { path: '/trends', module: () => import('./pages/trends.js'), title: 'Trends' },
   { path: '/literature-review', module: () => import('./pages/literature-review.js'), title: 'Literature Review' },
   { path: '/watchlist', module: () => import('./pages/watchlist.js'), title: 'Watchlist' },
+  { path: '/reading-list', module: () => import('./pages/reading-list.js'), title: 'Reading List' },
 ];
 
 // ── Router ───────────────────────────────────────

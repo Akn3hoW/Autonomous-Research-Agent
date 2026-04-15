@@ -27,6 +27,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<HypothesisPaper> HypothesisPapers => Set<HypothesisPaper>();
     public DbSet<PotentialDuplicate> PotentialDuplicates => Set<PotentialDuplicate>();
     public DbSet<LiteratureReview> LiteratureReviews => Set<LiteratureReview>();
+    public DbSet<ResearchGap> ResearchGaps => Set<ResearchGap>();
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+    public DbSet<PaperReadingSession> PaperReadingSessions => Set<PaperReadingSession>();
+    public DbSet<PaperConcept> PaperConcepts => Set<PaperConcept>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

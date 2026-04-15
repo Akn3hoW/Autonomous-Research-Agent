@@ -15,9 +15,11 @@ public sealed class Paper : AuditableEntity
     public PaperSource Source { get; set; } = PaperSource.Manual;
     public PaperStatus Status { get; set; } = PaperStatus.Draft;
     public string? MetadataJson { get; set; }
+    public double? ClusterX { get; set; }
+    public double? ClusterY { get; set; }
 
     public ICollection<PaperSummary> Summaries { get; set; } = [];
     public ICollection<PaperEmbedding> Embeddings { get; set; } = [];
     public ICollection<PaperDocument> Documents { get; set; } = [];
+    public ICollection<PaperConcept> Concepts { get; set; } = [];
 }
-

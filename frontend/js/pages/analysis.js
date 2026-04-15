@@ -1,4 +1,4 @@
-import { comparePapers, compareFields, generateInsights, getAnalysisJob } from '../api.js';
+import { comparePapers, compareFields, generateInsights, getAnalysisJob, identifyResearchGap } from '../api.js';
 import { h, clear, loading, toast, emptyState, jsonBlock } from '../components.js';
 
 let pollingTimer = null;
@@ -18,6 +18,7 @@ export async function render(container, { signal }) {
     { id: 'compare-papers', label: 'Compare Papers' },
     { id: 'compare-fields', label: 'Compare Fields' },
     { id: 'generate-insights', label: 'Generate Insights' },
+    { id: 'research-gap', label: 'Research Gap' },
   ];
 
   let activeTab = 'compare-papers';
@@ -44,10 +45,12 @@ export async function render(container, { signal }) {
   const comparePapersPanel = h('div', { id: 'panel-compare-papers', className: 'analysis-panel' });
   const compareFieldsPanel = h('div', { id: 'panel-compare-fields', className: 'analysis-panel', hidden: true });
   const generateInsightsPanel = h('div', { id: 'panel-generate-insights', className: 'analysis-panel', hidden: true });
+  const researchGapPanel = h('div', { id: 'panel-research-gap', className: 'analysis-panel', hidden: true });
 
   panels.appendChild(comparePapersPanel);
   panels.appendChild(compareFieldsPanel);
   panels.appendChild(generateInsightsPanel);
+  panels.appendChild(researchGapPanel);
   container.appendChild(panels);
 
   const resultsSection = h('div', { id: 'analysis-results' });
@@ -56,6 +59,7 @@ export async function render(container, { signal }) {
   renderComparePapersForm(comparePapersPanel);
   renderCompareFieldsForm(compareFieldsPanel);
   renderGenerateInsightsForm(generateInsightsPanel);
+  renderResearchGapForm(researchGapPanel);
 
   function showTab(tabId) {
     document.querySelectorAll('.analysis-panel').forEach((p) => {
@@ -221,6 +225,107 @@ export async function render(container, { signal }) {
     form.appendChild(h('div', { className: 'mt-6' }, submitBtn));
 
     panel.appendChild(form);
+  }
+
+  function renderResearchGapForm(panel) {
+    const form = h('div', { className: 'analysis-form' });
+
+    const title = h('h2', { className: 'section-title mb-4' }, 'Identify Research Gaps');
+    form.appendChild(title);
+
+    const topic = h('input', {
+      className: 'input',
+      type: 'text',
+      id: 'rg-topic',
+      placeholder: 'Topic or research area (e.g., "machine learning in healthcare")',
+    });
+
+    const submitBtn = h('button', {
+      className: 'btn btn-primary',
+      onClick: async () => {
+        const topicValue = topic.value.trim();
+        if (!topicValue) {
+          toast('Please enter a topic', 'error');
+          return;
+        }
+        submitBtn.disabled = true;
+        clearResults();
+        showLoading('Analyzing research gaps\u2026');
+        try {
+          const result = await identifyResearchGap({ topic: topicValue });
+          showGapReport(result);
+        } catch (err) {
+          if (err.name === 'AbortError') return;
+          showError(err.message);
+          toast(err.message, 'error');
+        } finally {
+          submitBtn.disabled = false;
+        }
+      },
+    }, 'IDENTIFY GAPS');
+
+    form.appendChild(h('label', { className: 'field-label' }, 'Topic'));
+    form.appendChild(topic);
+    form.appendChild(h('div', { className: 'mt-6' }, submitBtn));
+
+    panel.appendChild(form);
+  }
+
+  function showGapReport(result) {
+    stopPolling();
+    const rs = document.getElementById('analysis-results');
+    clear(rs);
+
+    const content = h('div', { className: 'section' });
+    content.appendChild(h('div', { className: 'section-header' },
+      h('h2', { className: 'section-title' }, 'Research Gap Report'),
+    ));
+
+    if (result.gapAnalysis) {
+      const gapSection = h('div', { className: 'mb-6' });
+      gapSection.appendChild(h('h3', { className: 'section-title mb-2' }, 'Understudied Angles'));
+      gapSection.appendChild(jsonBlock(result.gapAnalysis));
+      content.appendChild(gapSection);
+    }
+
+    if (result.suggestedQueries) {
+      const queriesSection = h('div', { className: 'mb-6' });
+      queriesSection.appendChild(h('h3', { className: 'section-title mb-2' }, 'Suggested Queries'));
+      queriesSection.appendChild(jsonBlock(result.suggestedQueries));
+      content.appendChild(queriesSection);
+    }
+
+    if (result.corpusCoverage) {
+      const corpusSection = h('div', { className: 'mb-6' });
+      corpusSection.appendChild(h('h3', { className: 'section-title mb-2' }, 'Corpus Coverage'));
+      corpusSection.appendChild(jsonBlock(result.corpusCoverage));
+      content.appendChild(corpusSection);
+    }
+
+    if (result.externalCoverage) {
+      const externalSection = h('div', { className: 'mb-6' });
+      externalSection.appendChild(h('h3', { className: 'section-title mb-2' }, 'External Coverage (Semantic Scholar)'));
+      externalSection.appendChild(jsonBlock(result.externalCoverage));
+      content.appendChild(externalSection);
+    }
+
+    const meta = h('div', { className: 'detail-meta', style: 'margin-top:var(--s-6)' });
+    const metaItems = [
+      ['Report ID', result.id],
+      ['Topic', result.topic],
+      ['Created', new Date(result.createdAt).toLocaleString()],
+    ];
+    if (result.createdBy) metaItems.push(['Created By', result.createdBy]);
+    for (const [label, value] of metaItems) {
+      meta.appendChild(
+        h('div', { className: 'meta-item' },
+          h('span', { className: 'meta-label' }, label),
+          h('span', { className: 'meta-value cell-mono' }, String(value)),
+        )
+      );
+    }
+    content.appendChild(meta);
+    rs.appendChild(content);
   }
 
   function showLoading(text) {

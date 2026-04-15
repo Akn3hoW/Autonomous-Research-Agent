@@ -17,6 +17,10 @@ public sealed record GenerateInsightsCommand(
     string Filter,
     string? RequestedBy);
 
+public sealed record IdentifyResearchGapCommand(
+    string Topic,
+    string? RequestedBy);
+
 public sealed record AnalysisResultModel(
     Guid Id,
     Guid? JobId,
@@ -33,3 +37,12 @@ public sealed record AnalysisJobStatusModel(
     string? ErrorMessage,
     AnalysisResultModel? Result);
 
+public sealed record ResearchGapReportModel(
+    Guid Id,
+    string Topic,
+    JsonNode? GapAnalysis,
+    JsonNode? CorpusCoverage,
+    JsonNode? ExternalCoverage,
+    JsonNode? SuggestedQueries,
+    string? CreatedBy,
+    DateTimeOffset CreatedAt);

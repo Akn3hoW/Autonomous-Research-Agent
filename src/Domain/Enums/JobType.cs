@@ -15,6 +15,7 @@ public enum JobType
     GenerateReport = 10,
     TrendAnalysis = 11,
     WatchlistPolling = 12,
-    DuplicateDetection = 13
+    DuplicateDetection = 13,
+    GenerateClusterMap = 14,
+    ExtractConcepts = 15
 }
-

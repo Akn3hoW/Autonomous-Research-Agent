@@ -2047,3 +2047,51 @@ textarea.input {
 .bell-mark-read:hover {
   text-decoration: underline;
 }
+
+/* ── Concept Tag Cloud ─────────────────────────────── */
+
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  padding: var(--s-4) 0;
+}
+
+.concept-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--s-1) var(--s-3);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  border: 1px solid;
+  border-radius: 4px;
+  transition: opacity var(--duration) var(--ease);
+}
+
+.concept-tag:hover {
+  opacity: 0.8;
+}
+
+.concept-name {
+  font-weight: 500;
+}
+
+/* ── Cluster Chart ────────────────────────────────── */
+
+.cluster-chart-container {
+  width: 100%;
+  min-height: 600px;
+}
+
+.cluster-chart-container svg {
+  display: block;
+}
+
+.cluster-tooltip {
+  background: var(--c-white);
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  padding: var(--s-3);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  max-width: 300px;
+}

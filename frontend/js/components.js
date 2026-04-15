@@ -64,6 +64,11 @@ const STATUS_STYLES = {
   // Literature Review statuses
   Draft: 'badge-gray',
   Generating: 'badge-blue',
+
+  // Reading statuses
+  ToRead: 'badge-gray',
+  Reading: 'badge-blue',
+  Read: 'badge-green',
 };
 
 export function badge(status) {

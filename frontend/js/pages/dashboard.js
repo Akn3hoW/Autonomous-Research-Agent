@@ -1,4 +1,4 @@
-import { getPapers, getJobs } from '../api.js';
+import { getPapers, getJobs, getRecommendations } from '../api.js';
 import { h, clear, loading, badge, timeAgo, formatAuthors, toast, emptyState } from '../components.js';
 
 export async function render(container, { navigate }) {
@@ -6,11 +6,12 @@ export async function render(container, { navigate }) {
   container.appendChild(loading('Loading dashboard'));
 
   try {
-    const [papersRes, jobsRes, activeJobsRes, pendingPapers] = await Promise.all([
+    const [papersRes, jobsRes, activeJobsRes, pendingPapers, recommendationsRes] = await Promise.all([
       getPapers({ pageSize: 8, sortBy: 'createdAt', sortDirection: 'desc' }),
       getJobs({ pageSize: 6, sortBy: 'createdAt', sortDirection: 'desc' }),
       getJobs({ status: 'Running', pageSize: 100 }),
       getPapers({ status: 'Draft', pageSize: 100 }),
+      getRecommendations({ pageSize: 5 }).catch(() => ({ items: [], totalCount: 0 })),
     ]);
 
     clear(container);
@@ -109,6 +110,31 @@ export async function render(container, { navigate }) {
     }
 
     grid.appendChild(jobsSection);
+
+    if (recommendationsRes.items.length > 0) {
+      const recsSection = h('div', { className: 'section' });
+      recsSection.appendChild(sectionHeader('Recommended for You', 'View all', () => navigate('/papers')));
+
+      const recsList = h('div', { className: 'recommendations-list' });
+      for (const rec of recommendationsRes.items) {
+        const recCard = h('div', {
+          className: 'recommendation-card clickable',
+          onClick: () => navigate(`/papers/${rec.paperId}`),
+        },
+          h('div', { className: 'rec-title truncate' }, rec.title),
+          h('div', { className: 'cell-meta' }, formatAuthors(rec.authors, 2)),
+          h('div', { className: 'rec-meta' },
+            rec.year ? h('span', {}, String(rec.year)) : null,
+            rec.venue ? h('span', { className: 'text-secondary' }, ` \u2022 ${rec.venue}`) : null,
+            h('span', { className: 'rec-score' }, ` \u2022 ${(rec.similarityScore * 100).toFixed(0)}% match`),
+          ),
+        );
+        recsList.appendChild(recCard);
+      }
+      recsSection.appendChild(recsList);
+      grid.appendChild(recsSection);
+    }
+
     container.appendChild(grid);
 
   } catch (err) {

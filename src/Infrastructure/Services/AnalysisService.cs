@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 using AutonomousResearchAgent.Application.Analysis;
 using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Jobs;
+using AutonomousResearchAgent.Application.Papers;
 using AutonomousResearchAgent.Domain.Entities;
 using AutonomousResearchAgent.Domain.Enums;
 using AutonomousResearchAgent.Infrastructure.External.OpenRouter;
@@ -15,6 +16,7 @@ public sealed class AnalysisService(
     ApplicationDbContext dbContext,
     IJobService jobService,
     OpenRouterChatClient openRouterChatClient,
+    ISemanticScholarClient semanticScholarClient,
     ILogger<AnalysisService> logger) : IAnalysisService
 {
     private const string ComparisonJsonSchema = """
@@ -171,6 +173,108 @@ RIGHT FILTER: {command.RightFilter}
         dbContext.AnalysisResults.Remove(entity);
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Deleted analysis result {AnalysisResultId}", analysisResultId);
+    }
+
+    public async Task<ResearchGapReportModel> IdentifyResearchGapAsync(IdentifyResearchGapCommand command, CancellationToken cancellationToken)
+    {
+        var corpusPapers = await dbContext.Papers
+            .AsNoTracking()
+            .Where(p => EF.Functions.ILike(p.Title, $"%{command.Topic}%") || EF.Functions.ILike(p.Abstract, $"%{command.Topic}%"))
+            .Take(50)
+            .ToListAsync(cancellationToken);
+
+        var corpusCoverage = new JsonObject
+        {
+            ["topic"] = command.Topic,
+            ["papersFound"] = corpusPapers.Count,
+            ["papers"] = new JsonArray(corpusPapers.Select(p => new JsonObject
+            {
+                ["id"] = p.Id.ToString(),
+                ["title"] = p.Title,
+                ["year"] = p.Year ?? 0,
+                ["venue"] = p.Venue ?? ""
+            }).ToArray())
+        };
+
+        var externalPapers = await semanticScholarClient.SearchPapersAsync([command.Topic], 20, cancellationToken);
+        var externalCoverage = new JsonObject
+        {
+            ["topic"] = command.Topic,
+            ["papersFound"] = externalPapers.Count,
+            ["papers"] = new JsonArray(externalPapers.Select(p => new JsonObject
+            {
+                ["externalId"] = p.SemanticScholarId,
+                ["title"] = p.Title,
+                ["year"] = p.Year ?? 0,
+                ["venue"] = p.Venue ?? "",
+                ["citationCount"] = p.CitationCount
+            }).ToArray())
+        };
+
+        var systemPrompt = """
+You are an expert research gap analyst. Return valid JSON only.
+Schema:
+understudiedAngles: string[]
+researchOpportunities: string[]
+suggestedQueries: string[]
+coverageGaps: object
+comparisonSummary: string
+""";
+
+        var userPrompt = $"""
+Analyze research gaps for topic: {command.Topic}
+
+CORPUS COVERAGE (papers in our system):
+{corpusCoverage.ToJsonString()}
+
+EXTERNAL COVERAGE (papers from Semantic Scholar):
+{externalCoverage.ToJsonString()}
+
+Identify:
+1. What angles are understudied in our corpus vs external literature
+2. Research opportunities
+3. Suggested follow-up queries
+4. Coverage gaps
+""";
+
+        var llmResult = await openRouterChatClient.CreateJsonCompletionAsync(systemPrompt, userPrompt, cancellationToken);
+
+        var gapAnalysisJson = llmResult?["understudiedAngles"]?.ToJsonString() ?? "[]";
+        var suggestedQueriesJson = llmResult?["suggestedQueries"]?.ToJsonString() ?? "[]";
+
+        var entity = new ResearchGap
+        {
+            Topic = command.Topic,
+            GapAnalysisJson = gapAnalysisJson,
+            CorpusCoverageJson = corpusCoverage.ToJsonString(),
+            ExternalCoverageJson = externalCoverage.ToJsonString(),
+            SuggestedQueriesJson = suggestedQueriesJson,
+            CreatedBy = command.RequestedBy
+        };
+
+        dbContext.ResearchGaps.Add(entity);
+
+        var analysisResult = new AnalysisResult
+        {
+            AnalysisType = AnalysisType.ResearchGap,
+            InputSetJson = new JsonObject { ["topic"] = command.Topic }.ToJsonString(),
+            ResultJson = llmResult?.ToJsonString(),
+            CreatedBy = command.RequestedBy
+        };
+        dbContext.AnalysisResults.Add(analysisResult);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Created research gap analysis for topic {Topic}", command.Topic);
+
+        return new ResearchGapReportModel(
+            entity.Id,
+            entity.Topic,
+            entity.GapAnalysisJson is not null ? JsonNode.Parse(entity.GapAnalysisJson) : null,
+            entity.CorpusCoverageJson is not null ? JsonNode.Parse(entity.CorpusCoverageJson) : null,
+            entity.ExternalCoverageJson is not null ? JsonNode.Parse(entity.ExternalCoverageJson) : null,
+            entity.SuggestedQueriesJson is not null ? JsonNode.Parse(entity.SuggestedQueriesJson) : null,
+            entity.CreatedBy,
+            entity.CreatedAt);
     }
 
     private Task<List<Paper>> QueryPapersForFilter(string filter, CancellationToken cancellationToken) =>

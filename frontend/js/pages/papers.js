@@ -1,4 +1,4 @@
-import { getPapers } from '../api.js';
+import { getPapers, exportPapers } from '../api.js';
 import { h, clear, loading, badge, pagination, timeAgo, formatAuthors, debounce, toast, emptyState } from '../components.js';
 
 let currentParams = {
@@ -70,6 +70,24 @@ export async function render(container, { navigate }) {
     loadTable();
   });
   filterBar.appendChild(sourceSelect);
+
+  const exportSelect = h('select', { className: 'input input-sm select' });
+  exportSelect.innerHTML = `
+    <option value="">Export...</option>
+    <option value="bibtex">BibTeX</option>
+    <option value="ris">RIS</option>
+  `;
+  exportSelect.addEventListener('change', async (e) => {
+    if (!e.target.value) return;
+    try {
+      await exportPapers(e.target.value);
+      toast('Export downloaded', 'success');
+    } catch (err) {
+      toast('Export failed: ' + err.message, 'error');
+    }
+    e.target.value = '';
+  });
+  filterBar.appendChild(exportSelect);
 
   container.appendChild(filterBar);
 

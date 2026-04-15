@@ -664,6 +664,221 @@ references: array of objects with title, authors, year, venue
         })?.ToJsonString();
     }
 
+    private async Task RunGenerateClusterMapAsync(Job job, CancellationToken cancellationToken)
+    {
+        job.Status = JobStatus.Running;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var embeddings = await dbContext.PaperEmbeddings
+            .AsNoTracking()
+            .Where(e => e.PaperId != null && e.Vector != null && (e.EmbeddingType == EmbeddingType.PaperAbstract || e.EmbeddingType == EmbeddingType.PaperSummary))
+            .Include(e => e.Paper)
+            .ToListAsync(cancellationToken);
+
+        if (embeddings.Count < 2)
+        {
+            job.Status = JobStatus.Completed;
+            job.ResultJson = JsonSerializer.SerializeToNode(new { message = "Not enough embeddings for clustering", count = embeddings.Count })?.ToJsonString();
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        var vectors = embeddings
+            .Where(e => e.Vector != null)
+            .Select(e => e.Vector!)
+            .ToList();
+
+        var normalizedVectors = NormalizeVectors(vectors);
+        var coords = ComputeUmapCoordinates(normalizedVectors);
+
+        var paperCoords = embeddings
+            .Where(e => e.Vector != null)
+            .Zip(coords, (e, c) => new { PaperId = e.PaperId, X = c.X, Y = c.Y })
+            .Where(x => x.PaperId.HasValue)
+            .GroupBy(x => x.PaperId!.Value)
+            .Select(g => g.First())
+            .ToList();
+
+        foreach (var pc in paperCoords)
+        {
+            var paper = await dbContext.Papers.FindAsync(new object[] { pc.PaperId!.Value }, cancellationToken);
+            if (paper != null)
+            {
+                paper.ClusterX = pc.X;
+                paper.ClusterY = pc.Y;
+            }
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        job.Status = JobStatus.Completed;
+        job.ResultJson = JsonSerializer.SerializeToNode(new
+        {
+            clusteredPapers = paperCoords.Count,
+            totalEmbeddings = embeddings.Count,
+            completedAt = DateTimeOffset.UtcNow
+        })?.ToJsonString();
+    }
+
+    private async Task RunExtractConceptsAsync(Job job, CancellationToken cancellationToken)
+    {
+        job.Status = JobStatus.Running;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var papers = await dbContext.Papers
+            .AsNoTracking()
+            .Include(p => p.Summaries)
+            .Where(p => p.Status == PaperStatus.Ready || p.Summaries.Any())
+            .ToListAsync(cancellationToken);
+
+        var existingConcepts = await dbContext.PaperConcepts
+            .Where(c => papers.Select(p => p.Id).Contains(c.PaperId))
+            .ToListAsync(cancellationToken);
+        dbContext.PaperConcepts.RemoveRange(existingConcepts);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var systemPrompt = """
+You are an expert at extracting structured information from research paper summaries.
+Return valid JSON only.
+Extract all mentioned research methods, datasets, metrics, and models.
+Schema:
+concepts: array of objects with type (Method|Dataset|Metric|Model), name (string), confidence (0-1)
+Types must be exactly: Method, Dataset, Metric, or Model
+""";
+
+        var allConcepts = new List<PaperConcept>();
+
+        foreach (var paper in papers)
+        {
+            try
+            {
+                var summaryText = paper.Summaries.FirstOrDefault()?.SearchText ?? paper.Abstract ?? "";
+                if (string.IsNullOrWhiteSpace(summaryText))
+                    continue;
+
+                var userPrompt = $"Paper Title: {paper.Title}\n\nAbstract/Summary:\n{summaryText}";
+                var result = await openRouterChatClient.CreateJsonCompletionAsync(systemPrompt, userPrompt, cancellationToken);
+
+                var conceptsNode = result?["concepts"]?.AsArray();
+                if (conceptsNode == null)
+                    continue;
+
+                foreach (var conceptNode in conceptsNode)
+                {
+                    var typeStr = conceptNode?["type"]?.GetValue<string>();
+                    var name = conceptNode?["name"]?.GetValue<string>();
+                    var confidence = conceptNode?["confidence"]?.GetValue<double>() ?? 0.5;
+
+                    if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(typeStr))
+                        continue;
+
+                    if (!Enum.TryParse<ConceptType>(typeStr, true, out var conceptType))
+                        continue;
+
+                    allConcepts.Add(new PaperConcept
+                    {
+                        PaperId = paper.Id,
+                        ConceptType = conceptType,
+                        Name = name,
+                        Confidence = confidence
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to extract concepts for paper {PaperId}", paper.Id);
+            }
+        }
+
+        if (allConcepts.Count > 0)
+        {
+            dbContext.PaperConcepts.AddRange(allConcepts);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        job.Status = JobStatus.Completed;
+        job.ResultJson = JsonSerializer.SerializeToNode(new
+        {
+            papersProcessed = papers.Count,
+            conceptsExtracted = allConcepts.Count,
+            completedAt = DateTimeOffset.UtcNow
+        })?.ToJsonString();
+    }
+
+    private static List<(double X, double Y)> ComputeUmapCoordinates(List<float[]> vectors)
+    {
+        var n = vectors.Count;
+        return ComputeTSneCoordinates(vectors, n, 100, 42);
+    }
+
+    private static List<(double X, double Y)> ComputeTSneCoordinates(List<float[]> vectors, int n, int iterations, int seed)
+    {
+        var coords = new List<(double X, double Y)>();
+        var random = new Random(seed);
+
+        for (int i = 0; i < n; i++)
+        {
+            coords.Add((random.NextDouble() * 0.0001, random.NextDouble() * 0.0001));
+        }
+
+        var perplexity = Math.Min(30, n - 1);
+        var learningRate = 100.0;
+        var exaggeration = 12.0;
+
+        for (int iter = 0; iter < iterations; iter++)
+        {
+            var forces = new (double X, double Y)[n];
+            for (int i = 0; i < n; i++) forces[i] = (0, 0);
+
+            for (int i = 0; i < n; i++)
+            {
+                for (int j = i + 1; j < n; j++)
+                {
+                    var sim = VectorMath.CosineSimilarity(vectors[i], vectors[j]);
+                    var dx = coords[j].X - coords[i].X;
+                    var dy = coords[j].Y - coords[i].Y;
+                    var dist = Math.Sqrt(dx * dx + dy * dy) + 1e-10;
+                    var force = sim / dist;
+
+                    forces[i].X += dx * force;
+                    forces[i].Y += dy * force;
+                    forces[j].X -= dx * force;
+                    forces[j].Y -= dy * force;
+                }
+            }
+
+            var momentum = iter < 100 ? 0.5 : 0.8;
+            for (int i = 0; i < n; i++)
+            {
+                coords[i] = (
+                    coords[i].X + forces[i].X * learningRate * (1 - momentum) + coords[i].X * momentum * 0.1,
+                    coords[i].Y + forces[i].Y * learningRate * (1 - momentum) + coords[i].Y * momentum * 0.1
+                );
+            }
+        }
+
+        if (n < 2) return coords;
+
+        var minX = coords.Min(c => c.X);
+        var maxX = coords.Max(c => c.X);
+        var minY = coords.Min(c => c.Y);
+        var maxY = coords.Max(c => c.Y);
+
+        return coords.Select(c => (
+            maxX == minX ? 0.5 : (c.X - minX) / (maxX - minX),
+            maxY == minY ? 0.5 : (c.Y - minY) / (maxY - minY)
+        )).ToList();
+    }
+
+    private static List<float[]> NormalizeVectors(List<float[]> vectors)
+    {
+        return vectors.Select(v =>
+        {
+            var mag = Math.Sqrt(v.Sum(x => x * x));
+            return mag > 0 ? v.Select(x => (float)(x / mag)).ToArray() : v;
+        }).ToList();
+    }
+
     private static JsonObject ParsePayload(Job job) =>
         JsonNode.Parse(job.PayloadJson)?.AsObject()
         ?? throw new InvalidOperationException($"Job {job.Id} has an invalid payload.");

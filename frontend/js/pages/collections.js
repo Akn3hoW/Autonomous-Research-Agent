@@ -1,5 +1,6 @@
-import { getCollections, getCollection, createCollection, updateCollection, deleteCollection, addPaperToCollection, removePaperFromCollection, reorderCollectionPapers, exportCollection } from '../api.js';
+import { getCollections, getCollection, createCollection, updateCollection, deleteCollection, addPaperToCollection, removePaperFromCollection, reorderCollectionPapers, exportCollection, getConfig } from '../api.js';
 import { h, clear, loading, toast, emptyState, badge, formatAuthors } from '../components.js';
+import { ApiError } from '../api.js';
 
 let collections = [];
 let allPapers = [];
@@ -83,7 +84,8 @@ function buildCollectionColumn(collection) {
     ),
     h('div', { className: 'kanban-column-actions' },
       h('button', { className: 'btn-icon', title: 'Edit', onClick: () => showCollectionModal(collection) }, '\u270E'),
-      h('button', { className: 'btn-icon', title: 'Export', onClick: () => handleExport(collection.id, collection.name) }, '\u21E9'),
+      h('button', { className: 'btn-icon', title: 'Export ZIP', onClick: () => handleExportZip(collection.id, collection.name) }, '\u21E9'),
+      h('button', { className: 'btn-icon', title: 'Export BibTeX', onClick: () => handleExportBibtex(collection.id, collection.name) }, '\u21E9'),
       h('button', { className: 'btn-icon btn-icon-danger', title: 'Delete', onClick: () => handleDelete(collection.id) }, '\u2715')
     )
   );
@@ -225,13 +227,48 @@ async function handleDelete(collectionId) {
   }
 }
 
-async function handleExport(collectionId, collectionName) {
+async function handleExportZip(collectionId, collectionName) {
   try {
     await exportCollection(collectionId, `collection_${collectionName.replace(/\s+/g, '_')}.zip`);
     toast('Collection exported', 'success');
   } catch (err) {
     toast(err.message, 'error');
   }
+}
+
+async function handleExportBibtex(collectionId, collectionName) {
+  try {
+    await exportPapersByCollection(collectionId, `collection_${collectionName.replace(/\s+/g, '_')}.bib`);
+    toast('Collection exported as BibTeX', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function exportPapersByCollection(collectionId, filename) {
+  const { baseUrl, token } = getConfig();
+  const h = { Accept: '*/*' };
+  if (token) h['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  const res = await fetch(`${baseUrl}/api/v1/collections/${collectionId}/export?format=bibtex`, { headers: h });
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const err = await res.json();
+      detail = err.detail || err.title || err.message || JSON.stringify(err);
+    } catch {
+      detail = res.statusText;
+    }
+    throw new ApiError(res.status, detail);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function showCollectionModal(collection = null) {

@@ -128,6 +128,34 @@ export function importPapers(data) {
   return request('POST', '/api/v1/papers/import', data);
 }
 
+export async function exportPapers(format) {
+  const { baseUrl, token } = getConfig();
+  const h = { Accept: '*/*' };
+  if (token) h['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  const res = await fetch(`${baseUrl}/api/v1/papers/export?format=${encodeURIComponent(format)}`, { headers: h });
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const err = await res.json();
+      detail = err.detail || err.title || err.message || JSON.stringify(err);
+    } catch {
+      detail = res.statusText;
+    }
+    throw new ApiError(res.status, detail);
+  }
+  const blob = await res.blob();
+  const contentDisposition = res.headers.get('Content-Disposition');
+  const filename = contentDisposition?.match(/filename="(.+)"/)?.[1] || `papers.${format}`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ── Jobs ─────────────────────────────────────────
 
 export function getJobs(params = {}, signal) {
@@ -431,6 +459,89 @@ export function addHypothesisPaper(hypothesisId, data) {
 export function removeHypothesisPaper(hypothesisId, paperId) {
   invalidatePrefix('/api/v1/hypotheses');
   return request('DELETE', `/api/v1/hypotheses/${hypothesisId}/papers/${paperId}`);
+}
+
+// ── Reading List ─────────────────────────────────
+
+export function getReadingList(params = {}, signal) {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v != null && v !== '') qs.set(k, v);
+  }
+  return request('GET', `/api/v1/me/reading-list?${qs}`, null, { cache: true, signal });
+}
+
+export function getReadingSession(id, signal) {
+  return request('GET', `/api/v1/me/reading-list/${id}`, null, { cache: true, signal });
+}
+
+export function createReadingSession(data) {
+  invalidatePrefix('/api/v1/me/reading-list');
+  return request('POST', '/api/v1/me/reading-list', data);
+}
+
+export function updateReadingSession(id, data) {
+  invalidatePrefix('/api/v1/me/reading-list');
+  return request('PUT', `/api/v1/me/reading-list/${id}`, data);
+}
+
+export function deleteReadingSession(id) {
+  invalidatePrefix('/api/v1/me/reading-list');
+  return request('DELETE', `/api/v1/me/reading-list/${id}`);
+}
+
+// ── Recommendations ───────────────────────────────
+
+export function getRecommendations(params = {}, signal) {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v != null && v !== '') qs.set(k, v);
+  }
+  return request('GET', `/api/v1/me/recommendations?${qs}`, null, { cache: true, signal });
+}
+
+// ── Webhooks ─────────────────────────────────────
+
+export function getWebhooks(signal) {
+  return request('GET', '/api/v1/me/webhooks', null, { cache: false, signal });
+}
+
+export function createWebhook(data) {
+  invalidatePrefix('/api/v1/me/webhooks');
+  return request('POST', '/api/v1/me/webhooks', data);
+}
+
+export function deleteWebhook(id) {
+  invalidatePrefix('/api/v1/me/webhooks');
+  return request('DELETE', `/api/v1/me/webhooks/${id}`);
+}
+
+// ── Collections ─────────────────────────────────
+
+export async function exportCollection(collectionId, filename) {
+  const { baseUrl, token } = getConfig();
+  const h = { Accept: '*/*' };
+  if (token) h['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  const res = await fetch(`${baseUrl}/api/v1/collections/${collectionId}/export`, { headers: h });
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const err = await res.json();
+      detail = err.detail || err.title || err.message || JSON.stringify(err);
+    } catch {
+      detail = res.statusText;
+    }
+    throw new ApiError(res.status, detail);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ── Config re-export ─────────────────────────────

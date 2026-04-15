@@ -2,6 +2,7 @@ using AutonomousResearchAgent.Api.Authorization;
 using AutonomousResearchAgent.Api.Contracts.Collections;
 using AutonomousResearchAgent.Api.Extensions;
 using AutonomousResearchAgent.Application.Collections;
+using AutonomousResearchAgent.Application.Export;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,7 +10,9 @@ namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/collections")]
-public sealed class CollectionsController(ICollectionService collectionService) : ControllerBase
+public sealed class CollectionsController(
+    ICollectionService collectionService,
+    IExportService exportService) : ControllerBase
 {
     [HttpGet]
     [Authorize(Policy = PolicyNames.ReadAccess)]
@@ -120,9 +123,20 @@ public sealed class CollectionsController(ICollectionService collectionService) 
     [Authorize(Policy = PolicyNames.ReadAccess)]
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<FileResult> ExportCollection(Guid id, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ExportCollection(Guid id, [FromQuery] string format, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
+        var collection = await collectionService.GetByIdAsync(id, userId, cancellationToken);
+
+        if (string.Equals(format, "bibtex", StringComparison.OrdinalIgnoreCase))
+        {
+            var bibtexEntries = collection.Papers.Select(p =>
+                exportService.ToBibtex(p.PaperId, p.Title, p.Authors, p.Year, null, null, 0));
+            var content = string.Join("\n\n", bibtexEntries);
+            return File(System.Text.Encoding.UTF8.GetBytes(content), "application/x-bibtex", $"collection_{id}.bib");
+        }
+
         var zipBytes = await collectionService.ExportAsync(id, userId, cancellationToken);
         return File(zipBytes, "application/zip", $"collection_{id}.zip");
     }
