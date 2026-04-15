@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AutonomousResearchAgent.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,6 +32,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
     public DbSet<PaperReadingSession> PaperReadingSessions => Set<PaperReadingSession>();
     public DbSet<PaperConcept> PaperConcepts => Set<PaperConcept>();
+    public DbSet<UserWebhook> UserWebhooks => Set<UserWebhook>();
+    public DbSet<BatchJob> BatchJobs => Set<BatchJob>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,6 +43,13 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         }
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+
+        modelBuilder.Entity<PaperEmbedding>().Property(e => e.Vector)
+            .HasConversion(
+                v => v == null ? null : JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                s => s == null ? null : JsonSerializer.Deserialize<float[]>(s, (JsonSerializerOptions?)null));
+
+        modelBuilder.Entity<User>().HasIndex(e => e.Email).IsUnique();
 
         if (Database.ProviderName != "Npgsql.EntityFrameworkCore.PostgreSQL")
         {

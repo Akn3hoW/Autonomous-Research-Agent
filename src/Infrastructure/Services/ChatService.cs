@@ -19,7 +19,6 @@ namespace AutonomousResearchAgent.Infrastructure.Services;
 public sealed class ChatService(
     ApplicationDbContext dbContext,
     IEmbeddingService embeddingService,
-    OpenRouterChatClient openRouterChatClient,
     IOptions<OpenRouterOptions> options,
     ILogger<ChatService> logger) : IChatService
 {

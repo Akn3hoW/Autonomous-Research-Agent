@@ -4,12 +4,13 @@ using AutonomousResearchAgent.Api.Contracts.Chat;
 using AutonomousResearchAgent.Application.Chat;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/chat")]
-public sealed class ChatController(IChatService chatService) : ControllerBase
+public sealed class ChatController(IChatService chatService, ILogger<ChatController> logger) : ControllerBase
 {
     [HttpPost]
     [Authorize(Policy = PolicyNames.ReadAccess)]
@@ -20,12 +21,23 @@ public sealed class ChatController(IChatService chatService) : ControllerBase
         Response.ContentType = "text/plain; charset=utf-8";
         Response.StatusCode = 200;
 
-        await foreach (var token in chatService.StreamChatAsync(request.Question, request.TopK, cancellationToken))
+        try
         {
-            if (cancellationToken.IsCancellationRequested) break;
-            var bytes = Encoding.UTF8.GetBytes(token);
-            await Response.Body.WriteAsync(bytes, cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
+            await foreach (var token in chatService.StreamChatAsync(request.Question, request.TopK, cancellationToken))
+            {
+                if (cancellationToken.IsCancellationRequested) break;
+                var bytes = Encoding.UTF8.GetBytes(token);
+                await Response.Body.WriteAsync(bytes, cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error in streaming chat");
+            if (!Response.HasStarted)
+            {
+                Response.StatusCode = 500;
+            }
         }
     }
 

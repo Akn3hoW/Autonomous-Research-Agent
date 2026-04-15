@@ -1,8 +1,11 @@
 using AutonomousResearchAgent.Application.BatchJobs;
+using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Domain.Entities;
 using AutonomousResearchAgent.Infrastructure.Persistence;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AutonomousResearchAgent.Infrastructure.Services;
 
@@ -42,6 +45,11 @@ public sealed class BatchJobService(
     {
         var entity = await dbContext.BatchJobs.FirstOrDefaultAsync(b => b.Id == id, cancellationToken)
             ?? throw new NotFoundException(nameof(BatchJob), id);
+
+        if (completed > entity.Total)
+        {
+            throw new ValidationException($"Completed count ({completed}) cannot exceed total count ({entity.Total}).");
+        }
 
         entity.Completed = completed;
         if (entity.Status == BatchJobStatus.Pending && completed > 0)

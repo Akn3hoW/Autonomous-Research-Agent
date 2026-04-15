@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace AutonomousResearchAgent.Domain.Entities;
 
 public sealed class BatchJob : AuditableEntity
@@ -7,6 +9,9 @@ public sealed class BatchJob : AuditableEntity
     public BatchJobStatus Status { get; set; } = BatchJobStatus.Pending;
     public int Total { get; set; }
     public int Completed { get; set; }
+
+    [ForeignKey(nameof(UserId))]
+    public User? User { get; set; }
 }
 
 public enum BatchJobStatus

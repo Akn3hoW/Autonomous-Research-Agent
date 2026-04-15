@@ -14,6 +14,7 @@ using AutonomousResearchAgent.Application.Summaries;
 using AutonomousResearchAgent.Application.Users;
 using AutonomousResearchAgent.Application.Watchlist;
 using AutonomousResearchAgent.Infrastructure.BackgroundJobs;
+using AutonomousResearchAgent.Infrastructure.Configuration;
 using AutonomousResearchAgent.Infrastructure.External.OpenRouter;
 using AutonomousResearchAgent.Infrastructure.External.SemanticScholar;
 using AutonomousResearchAgent.Infrastructure.Persistence;
@@ -21,6 +22,7 @@ using AutonomousResearchAgent.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Pgvector.EntityFrameworkCore;
 
 namespace AutonomousResearchAgent.Infrastructure.Extensions;
@@ -41,6 +43,8 @@ public static class ServiceCollectionExtensions
                 options.ApiKey = Environment.GetEnvironmentVariable("OPENROUTER_API_KEY");
             }
         });
+        services.AddSingleton<IValidateOptions<OpenRouterOptions>, OpenRouterOptionsValidator>();
+        services.AddSingleton<IValidateOptions<SemanticScholarOptions>, SemanticScholarOptionsValidator>();
         services.Configure<BackgroundJobOptions>(configuration.GetSection(BackgroundJobOptions.SectionName));
         services.Configure<DocumentProcessingOptions>(configuration.GetSection(DocumentProcessingOptions.SectionName));
         services.Configure<LocalEmbeddingOptions>(configuration.GetSection(LocalEmbeddingOptions.SectionName));
@@ -102,6 +106,8 @@ public static class ServiceCollectionExtensions
         {
             client.Timeout = TimeSpan.FromMinutes(5);
         });
+
+        services.AddHttpClient("Webhooks");
 
         return services;
     }

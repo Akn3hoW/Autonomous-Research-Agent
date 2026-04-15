@@ -1,4 +1,4 @@
-import { streamChat, postChat } from '../api.js';
+import { streamChat, postChat, escapeHtml } from '../api.js';
 import {
   h, clear, loading, toast, emptyState
 } from '../components.js';
@@ -105,7 +105,7 @@ export async function render(container, { navigate, signal }) {
         clearTimeout(timeout);
 
         clear(assistantBubble);
-        assistantBubble.appendChild(h('div', { className: 'chat-answer' }, result.content || ''));
+        assistantBubble.appendChild(h('div', { className: 'chat-answer' }, escapeHtml(result.content) || ''));
 
         if (result.sources?.length > 0) {
           chatState.sources = result.sources;

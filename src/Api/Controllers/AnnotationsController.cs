@@ -16,9 +16,11 @@ public sealed class AnnotationsController(IAnnotationService annotationService) 
     [ProducesResponseType(typeof(IReadOnlyCollection<AnnotationResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyCollection<AnnotationResponse>>> GetAnnotationsForPaper(
         Guid paperId,
-        [FromQuery] Guid? userId = null,
         CancellationToken cancellationToken = default)
     {
+        var userIdClaim = User.FindFirst("user_id")?.Value;
+        if (!Guid.TryParse(userIdClaim, out var userId))
+            return Unauthorized();
         var annotations = await annotationService.ListForPaperAsync(paperId, userId, cancellationToken);
         return Ok(annotations.Select(a => new AnnotationResponse(
             a.Id,

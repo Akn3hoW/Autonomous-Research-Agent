@@ -823,7 +823,6 @@ Types must be exactly: Method, Dataset, Metric, or Model
 
         var perplexity = Math.Min(30, n - 1);
         var learningRate = 100.0;
-        var exaggeration = 12.0;
 
         for (int iter = 0; iter < iterations; iter++)
         {

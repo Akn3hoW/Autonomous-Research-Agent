@@ -1,4 +1,4 @@
-import { getPapers, getJobs, getRecommendations } from '../api.js';
+import { getPapers, getJobs, getRecommendations, escapeHtml } from '../api.js';
 import { h, clear, loading, badge, timeAgo, formatAuthors, toast, emptyState } from '../components.js';
 
 export async function render(container, { navigate }) {
@@ -143,7 +143,7 @@ export async function render(container, { navigate }) {
     container.appendChild(
       emptyState(
         'Unable to connect',
-        `Check that the API is running and the URL is correct. Error: ${err.message}`
+        `Check that the API is running and the URL is correct. Error: ${escapeHtml(err.message)}`
       )
     );
     toast(err.message, 'error');

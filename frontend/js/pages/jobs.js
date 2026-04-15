@@ -1,4 +1,4 @@
-import { getJobs, getJob, retryJob } from '../api.js';
+import { getJobs, getJob, retryJob, escapeHtml } from '../api.js';
 import {
   h, clear, loading, badge, pagination, timeAgo, formatDateTime,
   jsonBlock, toast, emptyState
@@ -12,6 +12,7 @@ let currentParams = {
 };
 
 let pollingTimer = null;
+let isTabVisible = true;
 
 export async function render(container, { navigate, params }) {
   // Job detail view
@@ -86,6 +87,10 @@ export async function render(container, { navigate, params }) {
   loadTable();
 
   // Auto-refresh when Running jobs exist
+  isTabVisible = !document.hidden;
+  document.addEventListener('visibilitychange', () => {
+    isTabVisible = !document.hidden;
+  });
   startPolling();
 
   async function loadTable() {
@@ -183,6 +188,7 @@ export async function render(container, { navigate, params }) {
         stopPolling();
         return;
       }
+      if (!isTabVisible) return;
       if (currentParams.status === '' || currentParams.status === 'Running' || currentParams.status === 'Queued') {
         loadTable();
       }
@@ -249,7 +255,7 @@ async function renderJobDetail(container, jobId, navigate) {
           h('div', { className: 'section-header' },
             h('h2', { className: 'section-title' }, 'Error'),
           ),
-          h('pre', { className: 'json-block', style: 'border-left:3px solid var(--c-red)' }, job.errorMessage),
+          h('pre', { className: 'json-block', style: 'border-left:3px solid var(--c-red)' }, escapeHtml(job.errorMessage)),
         )
       );
     }

@@ -2,6 +2,12 @@
 // ARA API Client — with caching and error handling
 // ═══════════════════════════════════════════════════
 
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 const CACHE = new Map();
 const CACHE_TTL = 30_000; // 30 seconds
 
@@ -45,7 +51,7 @@ function setCache(key, data) {
 
 function invalidatePrefix(prefix) {
   for (const key of CACHE.keys()) {
-    if (key.includes(prefix)) CACHE.delete(key);
+    if (key.startsWith(prefix)) CACHE.delete(key);
   }
 }
 
@@ -95,7 +101,7 @@ export class ApiError extends Error {
 
 export async function checkHealth(signal) {
   const { baseUrl } = getConfig();
-  const res = await fetch(`${baseUrl}/health`, { signal });
+  const res = await fetch(`${baseUrl}/health`, { headers: headers(), signal });
   return res.ok;
 }
 
@@ -546,4 +552,4 @@ export async function exportCollection(collectionId, filename) {
 
 // ── Config re-export ─────────────────────────────
 
-export { getConfig, saveConfig };
+export { getConfig, saveConfig, escapeHtml };

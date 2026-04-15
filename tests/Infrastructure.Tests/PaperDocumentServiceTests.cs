@@ -169,12 +169,32 @@ public sealed class PaperDocumentServiceTests
             IReadOnlyCollection<string> queries,
             int limit,
             CancellationToken cancellationToken) => Task.FromResult(results);
+
+        public Task<SemanticScholarPaperDetails?> GetPaperDetailsAsync(string arXivId, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<SemanticScholarPaperDetails?>(null);
+        }
     }
 
     private sealed class NoOpEmbeddingIndexingService : IEmbeddingIndexingService
     {
         public Task UpsertPaperAbstractAsync(Paper paper, CancellationToken cancellationToken) => Task.CompletedTask;
 
+        public Task UpsertPaperAbstractAsync(IEnumerable<Paper> papers, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
         public Task UpsertSummaryAsync(PaperSummary summary, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task UpsertDocumentChunkAsync(DocumentChunk chunk, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task UpsertDocumentChunksAsync(IEnumerable<DocumentChunk> chunks, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 }

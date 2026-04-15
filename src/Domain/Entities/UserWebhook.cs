@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace AutonomousResearchAgent.Domain.Entities;
 
 public sealed class UserWebhook : AuditableEntity
@@ -8,5 +10,6 @@ public sealed class UserWebhook : AuditableEntity
     public string Secret { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
 
+    [ForeignKey(nameof(UserId))]
     public User User { get; set; } = null!;
 }

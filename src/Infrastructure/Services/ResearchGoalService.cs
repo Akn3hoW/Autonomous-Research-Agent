@@ -17,11 +17,6 @@ namespace AutonomousResearchAgent.Infrastructure.Services;
 public sealed class ResearchGoalService(
     ApplicationDbContext dbContext,
     IJobService jobService,
-    ISemanticScholarClient semanticScholarClient,
-    IPaperService paperService,
-    ISummaryService summaryService,
-    ISummarizationService summarizationService,
-    OpenRouterChatClient openRouterChatClient,
     ILogger<ResearchGoalService> logger) : IResearchGoalService
 {
     private readonly OpenRouterOptions _openRouterOptions = new();

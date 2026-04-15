@@ -217,16 +217,19 @@ public sealed class DuplicateDetectionService(
     {
         logger.LogInformation("Starting duplicate detection with threshold {Threshold}", threshold);
 
-        var embeddings = await dbContext.PaperEmbeddings
+        const int topK = 50;
+        const int maxComparisonsPerBatch = 10000;
+
+        var allEmbeddings = await dbContext.PaperEmbeddings
             .AsNoTracking()
             .Where(e => e.PaperId != null && e.Vector != null && e.EmbeddingType == EmbeddingType.PaperAbstract)
-            .Include(e => e.Paper)
+            .Select(e => new { e.PaperId, e.Vector })
             .ToListAsync(cancellationToken);
 
-        var paperEmbeddings = embeddings
+        var paperEmbeddings = allEmbeddings
             .GroupBy(e => e.PaperId)
             .Select(g => g.First())
-            .Where(pe => pe.Vector != null && pe.Paper != null)
+            .Where(pe => pe.Vector != null)
             .ToList();
 
         logger.LogInformation("Found {Count} paper embeddings to compare", paperEmbeddings.Count);
@@ -245,34 +248,50 @@ public sealed class DuplicateDetectionService(
 
         for (var i = 0; i < paperEmbeddings.Count; i++)
         {
-            for (var j = i + 1; j < paperEmbeddings.Count; j++)
+            var embeddingA = paperEmbeddings[i];
+            if (embeddingA.PaperId == null)
+                continue;
+
+            var paperIdA = embeddingA.PaperId.Value;
+            var candidates = new List<(Guid PaperId, float[] Vector)>();
+            for (var j = 0; j < paperEmbeddings.Count; j++)
             {
-                var embeddingA = paperEmbeddings[i];
+                if (i == j) continue;
                 var embeddingB = paperEmbeddings[j];
+                if (embeddingB.PaperId == null) continue;
+                candidates.Add((embeddingB.PaperId.Value, embeddingB.Vector!));
+            }
 
-                if (embeddingA.PaperId == null || embeddingB.PaperId == null)
-                    continue;
+            var topCandidates = candidates
+                .OrderByDescending(c => VectorMath.CosineSimilarity(embeddingA.Vector!, c.Vector))
+                .Take(topK)
+                .ToList();
 
-                var pairKey = embeddingA.PaperId < embeddingB.PaperId
-                    ? (embeddingA.PaperId.Value, embeddingB.PaperId.Value)
-                    : (embeddingB.PaperId.Value, embeddingA.PaperId.Value);
+            var batchComparisons = 0;
+            foreach (var candidate in topCandidates)
+            {
+                if (batchComparisons >= maxComparisonsPerBatch)
+                    break;
+
+                var pairKey = paperIdA < candidate.PaperId ? (paperIdA, candidate.PaperId) : (candidate.PaperId, paperIdA);
 
                 if (existingPairs.Contains(pairKey))
                     continue;
 
-                var similarity = VectorMath.CosineSimilarity(embeddingA.Vector!, embeddingB.Vector!);
+                var similarity = VectorMath.CosineSimilarity(embeddingA.Vector!, candidate.Vector);
 
                 if (similarity >= threshold)
                 {
                     newDuplicates.Add(new PotentialDuplicate
                     {
-                        PaperAId = embeddingA.PaperId.Value,
-                        PaperBId = embeddingB.PaperId.Value,
+                        PaperAId = paperIdA,
+                        PaperBId = candidate.PaperId,
                         SimilarityScore = similarity,
                         Status = DuplicateReviewStatus.Pending
                     });
 
                     existingPairs.Add(pairKey);
+                    batchComparisons++;
 
                     if (newDuplicates.Count >= BatchSize)
                     {

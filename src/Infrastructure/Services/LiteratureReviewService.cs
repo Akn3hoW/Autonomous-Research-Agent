@@ -16,7 +16,7 @@ public sealed class LiteratureReviewService(
     OpenRouterChatClient openRouterChatClient,
     ILogger<LiteratureReviewService> logger) : ILiteratureReviewService
 {
-    public async Task<LiteratureReviewDetail> CreateAsync(CreateLiteratureReviewCommand command, Guid userId, CancellationToken cancellationToken)
+    public async Task<LiteratureReviewDetail> CreateAsync(CreateLiteratureReviewCommand command, int userId, CancellationToken cancellationToken)
     {
         var entity = new LiteratureReview
         {
@@ -46,7 +46,7 @@ public sealed class LiteratureReviewService(
             entity.CompletedAt);
     }
 
-    public async Task<LiteratureReviewDetail?> GetByIdAsync(Guid id, Guid userId, CancellationToken cancellationToken)
+    public async Task<LiteratureReviewDetail?> GetByIdAsync(Guid id, int userId, CancellationToken cancellationToken)
     {
         var entity = await dbContext.LiteratureReviews
             .AsNoTracking()
@@ -72,7 +72,7 @@ public sealed class LiteratureReviewService(
             entity.CompletedAt);
     }
 
-    public async Task<IReadOnlyList<LiteratureReviewModel>> ListAsync(Guid userId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<LiteratureReviewModel>> ListAsync(int userId, CancellationToken cancellationToken)
     {
         var items = await dbContext.LiteratureReviews
             .AsNoTracking()
@@ -210,10 +210,10 @@ Papers to review:
     public async Task<byte[]> ExportToPdfAsync(Guid reviewId, CancellationToken cancellationToken)
     {
         var markdown = await ExportToMarkdownAsync(reviewId, cancellationToken);
-        return GeneratePdfFromMarkdown(markdown);
+        return GenerateBytesFromMarkdown(markdown);
     }
 
-    public async Task DeleteAsync(Guid id, Guid userId, CancellationToken cancellationToken)
+    public async Task DeleteAsync(Guid id, int userId, CancellationToken cancellationToken)
     {
         var entity = await dbContext.LiteratureReviews.FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId, cancellationToken)
             ?? throw new NotFoundException(nameof(LiteratureReview), id);
@@ -285,7 +285,7 @@ Papers to review:
         return sb.ToString();
     }
 
-    private static byte[] GeneratePdfFromMarkdown(string markdown)
+    private static byte[] GenerateBytesFromMarkdown(string markdown)
     {
         return System.Text.Encoding.UTF8.GetBytes(markdown);
     }

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace AutonomousResearchAgent.Domain.Entities;
 
 public sealed class PaperCitation : AuditableEntity
@@ -7,6 +9,9 @@ public sealed class PaperCitation : AuditableEntity
     public string? CitationContext { get; set; }
     public DateTime IngestedAt { get; set; } = DateTime.UtcNow;
 
+    [ForeignKey(nameof(SourcePaperId))]
     public Paper SourcePaper { get; set; } = null!;
+
+    [ForeignKey(nameof(TargetPaperId))]
     public Paper TargetPaper { get; set; } = null!;
 }

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using AutonomousResearchAgent.Domain.Enums;
 
 namespace AutonomousResearchAgent.Domain.Entities;
@@ -12,7 +13,12 @@ public sealed class PotentialDuplicate : AuditableEntity
     public DateTime? ReviewedAt { get; set; }
     public string? Notes { get; set; }
 
+    [ForeignKey(nameof(PaperAId))]
     public Paper? PaperA { get; set; }
+
+    [ForeignKey(nameof(PaperBId))]
     public Paper? PaperB { get; set; }
+
+    [ForeignKey(nameof(ReviewedByUserId))]
     public User? ReviewedByUser { get; set; }
 }

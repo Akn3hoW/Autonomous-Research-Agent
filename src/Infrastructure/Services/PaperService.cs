@@ -254,11 +254,14 @@ public sealed class PaperService(
         {
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            foreach (var paper in papersToIndex
+            var papersToUpsert = papersToIndex
                 .GroupBy(p => p.Id)
-                .Select(group => group.First()))
+                .Select(group => group.First())
+                .ToList();
+
+            if (papersToUpsert.Count > 0)
             {
-                await embeddingIndexingService.UpsertPaperAbstractAsync(paper, cancellationToken);
+                await embeddingIndexingService.UpsertPaperAbstractAsync(papersToUpsert, cancellationToken);
             }
 
             foreach (var document in queuedDocuments)

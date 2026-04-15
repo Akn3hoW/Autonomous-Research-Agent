@@ -23,7 +23,7 @@ public sealed class DatabaseJobWorkerTests
         await using var dbContext = CreateDbContext();
         var job = new Job
         {
-            Type = JobType.PaperProcessing,
+            Type = JobType.ImportPapers,
             Status = JobStatus.Queued,
             PayloadJson = "{}"
         };
@@ -31,13 +31,12 @@ public sealed class DatabaseJobWorkerTests
         await dbContext.SaveChangesAsync();
 
         var mockRunner = new MockJobRunner();
-        services.AddScoped(_ => dbContext);
-        services.AddScoped<IJobRunner>(_ => mockRunner);
+        var completionSource = new TaskCompletionSource();
+        mockRunner.SetupRunAsyncCompletion(completionSource);
 
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddScoped(_ => dbContext);
         serviceCollection.AddScoped<IJobRunner>(_ => mockRunner);
-        serviceCollection.AddScoped(_ => CreateDbContext());
         var provider = serviceCollection.BuildServiceProvider();
 
         var worker = new DatabaseJobWorker(
@@ -46,10 +45,9 @@ public sealed class DatabaseJobWorkerTests
             NullLogger<DatabaseJobWorker>.Instance);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        mockRunner.SetupRunAsyncCompletion();
 
         await worker.StartAsync(cts.Token);
-        await Task.Delay(200);
+        await completionSource.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await worker.StopAsync(CancellationToken.None);
 
         Assert.Equal(1, mockRunner.RunCount);
@@ -65,7 +63,7 @@ public sealed class DatabaseJobWorkerTests
         var dbContext = CreateDbContext();
         var job = new Job
         {
-            Type = JobType.PaperProcessing,
+            Type = JobType.ImportPapers,
             Status = JobStatus.Queued,
             PayloadJson = "{}"
         };
@@ -73,7 +71,8 @@ public sealed class DatabaseJobWorkerTests
         await dbContext.SaveChangesAsync();
 
         var mockRunner = new MockJobRunner();
-        mockRunner.SetupRunAsyncCompletion();
+        var completionSource = new TaskCompletionSource();
+        mockRunner.SetupRunAsyncCompletion(completionSource);
 
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddScoped(_ => dbContext);
@@ -88,7 +87,7 @@ public sealed class DatabaseJobWorkerTests
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         await worker.StartAsync(cts.Token);
-        await Task.Delay(500);
+        await completionSource.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await worker.StopAsync(CancellationToken.None);
 
         var updatedJob = await dbContext.Jobs.AsNoTracking().FirstAsync(j => j.Id == job.Id, cts.Token);
@@ -105,7 +104,7 @@ public sealed class DatabaseJobWorkerTests
         var dbContext = CreateDbContext();
         var job = new Job
         {
-            Type = JobType.PaperProcessing,
+            Type = JobType.ImportPapers,
             Status = JobStatus.Queued,
             PayloadJson = "{}"
         };
@@ -113,7 +112,8 @@ public sealed class DatabaseJobWorkerTests
         await dbContext.SaveChangesAsync();
 
         var mockRunner = new MockJobRunner();
-        mockRunner.SetupRunAsyncThrow(new InvalidOperationException("Job failed"));
+        var completionSource = new TaskCompletionSource();
+        mockRunner.SetupRunAsyncThrow(new InvalidOperationException("Job failed"), completionSource);
 
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddScoped(_ => dbContext);
@@ -128,7 +128,7 @@ public sealed class DatabaseJobWorkerTests
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         await worker.StartAsync(cts.Token);
-        await Task.Delay(500);
+        await completionSource.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await worker.StopAsync(CancellationToken.None);
 
         var updatedJob = await dbContext.Jobs.AsNoTracking().FirstAsync(j => j.Id == job.Id, cts.Token);
@@ -146,7 +146,7 @@ public sealed class DatabaseJobWorkerTests
         var dbContext = CreateDbContext();
         var job = new Job
         {
-            Type = JobType.PaperProcessing,
+            Type = JobType.ImportPapers,
             Status = JobStatus.Queued,
             PayloadJson = "{}"
         };
@@ -154,7 +154,8 @@ public sealed class DatabaseJobWorkerTests
         await dbContext.SaveChangesAsync();
 
         var mockRunner = new MockJobRunner();
-        mockRunner.SetupRunAsyncBlock();
+        var completionSource = new TaskCompletionSource();
+        mockRunner.SetupRunAsyncBlock(completionSource);
 
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddScoped(_ => dbContext);
@@ -169,7 +170,7 @@ public sealed class DatabaseJobWorkerTests
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
 
         await worker.StartAsync(cts.Token);
-        await Task.Delay(300);
+        await completionSource.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await worker.StopAsync(CancellationToken.None);
 
         Assert.True(mockRunner.RunCount <= 1);
@@ -186,6 +187,8 @@ public sealed class DatabaseJobWorkerTests
         var dbContext = CreateDbContext();
 
         var mockRunner = new MockJobRunner();
+        var completionSource = new TaskCompletionSource();
+        mockRunner.SetupRunAsyncCompletion(completionSource);
 
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddScoped(_ => dbContext);
@@ -200,7 +203,7 @@ public sealed class DatabaseJobWorkerTests
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
 
         await worker.StartAsync(cts.Token);
-        await Task.Delay(500);
+        await completionSource.Task.WaitAsync(TimeSpan.FromSeconds(3));
         await worker.StopAsync(CancellationToken.None);
 
         Assert.Equal(0, mockRunner.RunCount);
@@ -225,27 +228,31 @@ public sealed class DatabaseJobWorkerTests
 
     private sealed class MockJobRunner : IJobRunner
     {
-        private readonly TaskCompletionSource _runAsyncCompletionSource = new();
         private Exception? _exceptionToThrow;
         private bool _block;
+        private TaskCompletionSource? _completionSource;
 
         public int RunCount { get; private set; }
         public bool IsBlocked => _block && RunCount > 0;
 
-        public void SetupRunAsyncCompletion()
+        public void SetupRunAsyncCompletion(TaskCompletionSource completionSource)
         {
-            _runAsyncCompletionSource.SetResult();
+            _completionSource = completionSource;
+            _completionSource.SetResult();
         }
 
-        public void SetupRunAsyncThrow(Exception ex)
+        public void SetupRunAsyncThrow(Exception ex, TaskCompletionSource completionSource)
         {
             _exceptionToThrow = ex;
+            _completionSource = completionSource;
+            completionSource.SetResult();
         }
 
-        public void SetupRunAsyncBlock()
+        public void SetupRunAsyncBlock(TaskCompletionSource completionSource)
         {
             _block = true;
-            _runAsyncCompletionSource.SetResult();
+            _completionSource = completionSource;
+            completionSource.SetResult();
         }
 
         public async Task RunAsync(Job job, CancellationToken cancellationToken)

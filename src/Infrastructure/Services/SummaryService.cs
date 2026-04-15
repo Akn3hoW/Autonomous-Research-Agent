@@ -62,8 +62,8 @@ public sealed class SummaryService(
         };
 
         dbContext.PaperSummaries.Add(entity);
-        await dbContext.SaveChangesAsync(cancellationToken);
         await embeddingIndexingService.UpsertSummaryAsync(entity, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Created summary {SummaryId} for paper {PaperId}", entity.Id, entity.PaperId);
         return entity.ToModel();
@@ -89,8 +89,8 @@ public sealed class SummaryService(
             entity.SearchText = command.SearchText;
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
         await embeddingIndexingService.UpsertSummaryAsync(entity, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Updated summary {SummaryId}", entity.Id);
 
         return entity.ToModel();

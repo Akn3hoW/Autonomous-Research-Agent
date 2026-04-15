@@ -370,7 +370,7 @@ function renderReviewContent(content, review) {
         onClick: () => {
           wizardData = { title: '', researchQuestion: '', paperIds: [] };
           currentStep = 1;
-          renderStep(container);
+          renderStep(wizardContainer);
         },
       }, 'Create New Review'),
     )

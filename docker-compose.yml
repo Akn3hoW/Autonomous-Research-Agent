@@ -1,12 +1,12 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg17
+    image: pgvector/pgvector:pg17.2
     container_name: ara-postgres
     ports:
       - "5432:5432"
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: change-me
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: autonomous_research_agent
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -15,6 +15,14 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+    networks:
+      - ara-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
 
   embedding-service:
     build:
@@ -35,9 +43,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    restart: unless-stopped
+    networks:
+      - ara-network
     depends_on:
       postgres:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
 
   api:
     build:
@@ -47,15 +63,27 @@ services:
     ports:
       - "8080:8080"
     environment:
-      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=autonomous_research_agent;Username=postgres;Password=change-me"
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=autonomous_research_agent;Username=postgres;Password=${POSTGRES_PASSWORD}"
       LocalEmbedding__BaseUrl: "http://embedding-service:8001"
       ASPNETCORE_ENVIRONMENT: "Development"
+    restart: unless-stopped
+    networks:
+      - ara-network
     depends_on:
       postgres:
         condition: service_healthy
       embedding-service:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
 
 volumes:
   postgres_data:
   embedding_model_cache:
+
+networks:
+  ara-network:
+    driver: bridge

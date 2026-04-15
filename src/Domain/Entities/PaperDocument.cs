@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using AutonomousResearchAgent.Domain.Enums;
 
 namespace AutonomousResearchAgent.Domain.Entities;
@@ -17,6 +18,8 @@ public sealed class PaperDocument : AuditableEntity
     public DateTimeOffset? DownloadedAt { get; set; }
     public DateTimeOffset? ExtractedAt { get; set; }
 
+    [ForeignKey(nameof(PaperId))]
     public Paper Paper { get; set; } = null!;
+
     public ICollection<DocumentChunk> Chunks { get; set; } = [];
 }

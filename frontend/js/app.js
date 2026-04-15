@@ -3,7 +3,7 @@
 // Hash-based SPA router + initialization
 // ═══════════════════════════════════════════════════
 
-import { checkHealth, getConfig, saveConfig } from './api.js';
+import { checkHealth, getConfig, saveConfig, escapeHtml } from './api.js';
 import { clear, toast, notificationBell } from './components.js';
 
 // ── Route definitions ────────────────────────────
@@ -111,7 +111,7 @@ async function handleRoute() {
     content.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-title">Something went wrong</div>
-        <div class="empty-state-text">${err.message}</div>
+        <div class="empty-state-text">${escapeHtml(err.message)}</div>
       </div>
     `;
   }

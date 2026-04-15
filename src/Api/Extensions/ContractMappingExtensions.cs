@@ -1,5 +1,6 @@
 using AutonomousResearchAgent.Api.Contracts.Analysis;
 using AutonomousResearchAgent.Api.Contracts.Common;
+using AutonomousResearchAgent.Api.Contracts.Concepts;
 using AutonomousResearchAgent.Api.Contracts.Documents;
 using AutonomousResearchAgent.Api.Contracts.Jobs;
 using AutonomousResearchAgent.Api.Contracts.Papers;
@@ -9,6 +10,7 @@ using AutonomousResearchAgent.Api.Contracts.Watchlist;
 using AutonomousResearchAgent.Application.Analysis;
 using AutonomousResearchAgent.Application.Citations;
 using AutonomousResearchAgent.Application.Common;
+using AutonomousResearchAgent.Application.Concepts;
 using AutonomousResearchAgent.Application.Documents;
 using AutonomousResearchAgent.Application.Duplicates;
 using AutonomousResearchAgent.Application.Jobs;
@@ -174,6 +176,12 @@ public static class ContractMappingExtensions
 
     public static DuplicatesResponse ToDto(this DuplicatesResult result) =>
         new(result.Pairs.Select(p => p.ToDto()).ToList(), result.TotalCount, result.PendingCount);
+
+    public static ConceptDto ToDto(this ConceptModel model) =>
+        new(model.Id, model.PaperId, model.ConceptType.ToString(), model.Name, model.Confidence, model.CreatedAt);
+
+    public static ConceptStatisticsDto ToDto(this ConceptStatistics model) =>
+        new(model.ByType.Select(c => new ConceptTypeCountDto(c.ConceptType.ToString(), c.Count, c.PaperCount)).ToList(), model.TotalConcepts, model.TotalPapers);
 
     private static TEnum ParseEnum<TEnum>(string? value, TEnum defaultValue) where TEnum : struct, Enum =>
         Enum.TryParse<TEnum>(value, true, out var parsed) ? parsed : defaultValue;

@@ -179,7 +179,7 @@ RIGHT FILTER: {command.RightFilter}
     {
         var corpusPapers = await dbContext.Papers
             .AsNoTracking()
-            .Where(p => EF.Functions.ILike(p.Title, $"%{command.Topic}%") || EF.Functions.ILike(p.Abstract, $"%{command.Topic}%"))
+            .Where(p => EF.Functions.ILike(p.Title, $"%{EscapeILikePattern(command.Topic)}%") || EF.Functions.ILike(p.Abstract ?? string.Empty, $"%{EscapeILikePattern(command.Topic)}%"))
             .Take(50)
             .ToListAsync(cancellationToken);
 
@@ -279,4 +279,9 @@ Identify:
 
     private Task<List<Paper>> QueryPapersForFilter(string filter, CancellationToken cancellationToken) =>
         QueryHelpers.QueryPapersForFilterAsync(dbContext.Papers, filter, 10, cancellationToken);
+
+    private static string EscapeILikePattern(string pattern)
+    {
+        return pattern.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+    }
 }

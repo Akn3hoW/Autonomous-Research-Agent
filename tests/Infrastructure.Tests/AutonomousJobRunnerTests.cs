@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using AutonomousResearchAgent.Application.Duplicates;
+using AutonomousResearchAgent.Application.Jobs;
 using AutonomousResearchAgent.Application.Papers;
 using AutonomousResearchAgent.Application.Summaries;
 using AutonomousResearchAgent.Domain.Entities;
@@ -9,8 +11,10 @@ using AutonomousResearchAgent.Infrastructure.External.OpenRouter;
 using AutonomousResearchAgent.Infrastructure.Persistence;
 using AutonomousResearchAgent.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
@@ -24,7 +28,7 @@ public sealed class AutonomousJobRunnerTests
     private readonly Mock<ISummarizationService> _summarizationServiceMock;
     private readonly Mock<OpenRouterChatClient> _openRouterChatClientMock;
     private readonly IOptions<OpenRouterOptions> _openRouterOptions;
-    private readonly ILogger<AutonomousJobRunner> _logger;
+    private readonly ILoggerFactory _loggerFactory;
 
     public AutonomousJobRunnerTests()
     {
@@ -33,7 +37,7 @@ public sealed class AutonomousJobRunnerTests
         _summarizationServiceMock = new Mock<ISummarizationService>();
         _openRouterChatClientMock = new Mock<OpenRouterChatClient>();
         _openRouterOptions = Options.Create(new OpenRouterOptions { ApiKey = "test-key", Model = "test-model" });
-        _logger = NullLogger<AutonomousJobRunner>.Instance;
+        _loggerFactory = LoggerFactory.Create(b => b.AddConsole());
     }
 
     private static ApplicationDbContext CreateDbContext()
@@ -64,15 +68,26 @@ public sealed class AutonomousJobRunnerTests
                 ExtractedAt = DateTimeOffset.UtcNow
             });
 
+        var mockJobService = new Mock<IJobService>();
+        var mockTextChunkingService = new Mock<ITextChunkingService>();
+        var mockEmbeddingIndexingService = new Mock<IEmbeddingIndexingService>();
+        var mockDuplicateDetectionService = new Mock<IDuplicateDetectionService>();
+        var mockSemanticScholarClient = new Mock<ISemanticScholarClient>();
+
         return new AutonomousJobRunner(
             dbContext,
             _paperServiceMock.Object,
             _summaryServiceMock.Object,
             _summarizationServiceMock.Object,
             paperDocumentProcessingService.Object,
+            mockTextChunkingService.Object,
+            mockEmbeddingIndexingService.Object,
+            mockDuplicateDetectionService.Object,
+            mockJobService.Object,
             _openRouterChatClientMock.Object,
+            mockSemanticScholarClient.Object,
             _openRouterOptions,
-            _logger);
+            _loggerFactory);
     }
 
     [Fact]
@@ -123,7 +138,7 @@ public sealed class AutonomousJobRunnerTests
 
         await runner.RunAsync(job, CancellationToken.None);
 
-        var result = JsonNode.Parse(job.ResultJson);
+        var result = JsonNode.Parse(job.ResultJson!);
         Assert.Equal(1, result?["importedCount"]?.GetValue<int>());
         Assert.Contains(paperId, result?["paperIds"]?.AsArray().Select(n => n?.GetValue<Guid>()) ?? []);
     }
@@ -191,7 +206,7 @@ public sealed class AutonomousJobRunnerTests
 
         await runner.RunAsync(job, CancellationToken.None);
 
-        var result = JsonNode.Parse(job.ResultJson);
+        var result = JsonNode.Parse(job.ResultJson!);
         Assert.Equal(summaryId, result?["summaryId"]?.GetValue<Guid>());
         Assert.Equal(paperId, result?["paperId"]?.GetValue<Guid>());
     }
@@ -284,7 +299,7 @@ public sealed class AutonomousJobRunnerTests
 
         await runner.RunAsync(job, CancellationToken.None);
 
-        var result = JsonNode.Parse(job.ResultJson);
+        var result = JsonNode.Parse(job.ResultJson!);
         Assert.Equal("AI analysis", result?["overview"]?.GetValue<string>());
     }
 
@@ -304,7 +319,7 @@ public sealed class AutonomousJobRunnerTests
         await runner.RunAsync(job, CancellationToken.None);
 
         Assert.NotNull(job.ResultJson);
-        var result = JsonNode.Parse(job.ResultJson);
+        var result = JsonNode.Parse(job.ResultJson!);
         Assert.Equal(documentId, result?["documentId"]?.GetValue<Guid>());
         Assert.Equal("Extracted", result?["status"]?.GetValue<string>());
     }

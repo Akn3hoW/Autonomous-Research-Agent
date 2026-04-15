@@ -32,12 +32,18 @@ public sealed class ReadingSessionsController(IReadingSessionService readingSess
     [HttpGet("reading-list/{id:guid}")]
     [ProducesResponseType(typeof(ReadingSessionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<ReadingSessionResponse>> GetReadingSession(Guid id, CancellationToken cancellationToken)
     {
+        var userId = GetUserId();
         var result = await readingSessionService.GetByIdAsync(id, cancellationToken);
         if (result is null)
         {
             return NotFound();
+        }
+        if (result.UserId != userId)
+        {
+            return Forbid();
         }
         return Ok(MapToResponse(result));
     }
@@ -62,11 +68,18 @@ public sealed class ReadingSessionsController(IReadingSessionService readingSess
     [Authorize(Policy = PolicyNames.EditAccess)]
     [ProducesResponseType(typeof(ReadingSessionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<ReadingSessionResponse>> UpdateReadingSession(
         Guid id,
         [FromBody] UpdateReadingSessionRequest request,
         CancellationToken cancellationToken)
     {
+        var userId = GetUserId();
+        var existing = await readingSessionService.GetByIdAsync(id, cancellationToken);
+        if (existing == null)
+            return NotFound();
+        if (existing.UserId != userId)
+            return Forbid();
         var command = new UpdateReadingSessionCommand(request.Status, request.Notes);
         var updated = await readingSessionService.UpdateAsync(id, command, cancellationToken);
         return Ok(MapToResponse(updated));
@@ -76,8 +89,15 @@ public sealed class ReadingSessionsController(IReadingSessionService readingSess
     [Authorize(Policy = PolicyNames.EditAccess)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> DeleteReadingSession(Guid id, CancellationToken cancellationToken)
     {
+        var userId = GetUserId();
+        var existing = await readingSessionService.GetByIdAsync(id, cancellationToken);
+        if (existing == null)
+            return NotFound();
+        if (existing.UserId != userId)
+            return Forbid();
         await readingSessionService.DeleteAsync(id, cancellationToken);
         return NoContent();
     }
@@ -85,7 +105,9 @@ public sealed class ReadingSessionsController(IReadingSessionService readingSess
     private int GetUserId()
     {
         var userIdClaim = User.FindFirst("user_id")?.Value;
-        return int.Parse(userIdClaim ?? "0");
+        if (!int.TryParse(userIdClaim, out var userId))
+            throw new UnauthorizedAccessException("User ID not found in token");
+        return userId;
     }
 
     private static ReadingSessionResponse MapToResponse(ReadingSessionModel model) =>

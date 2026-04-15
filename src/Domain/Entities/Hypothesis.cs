@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using AutonomousResearchAgent.Domain.Enums;
 
 namespace AutonomousResearchAgent.Domain.Entities;
@@ -11,6 +12,8 @@ public sealed class Hypothesis : AuditableEntity
     public string? SupportingEvidenceJson { get; set; }
     public string? RefutingEvidenceJson { get; set; }
 
+    [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
+
     public ICollection<HypothesisPaper> HypothesisPapers { get; set; } = [];
 }

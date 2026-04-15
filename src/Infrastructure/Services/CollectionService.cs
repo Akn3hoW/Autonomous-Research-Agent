@@ -136,32 +136,42 @@ public sealed class CollectionService : ICollectionService
 
     public async Task AddPaperAsync(Guid collectionId, AddPaperCommand command, int userId, CancellationToken cancellationToken)
     {
-        var collection = await _db.Collections
-            .Include(c => c.CollectionPapers)
-            .FirstOrDefaultAsync(c => c.Id == collectionId && c.UserId == userId, cancellationToken)
-            ?? throw new NotFoundException("Collection", collectionId);
-
-        var paperExists = await _db.Papers.AnyAsync(p => p.Id == command.PaperId, cancellationToken);
-        if (!paperExists)
-            throw new NotFoundException("Paper", command.PaperId);
-
-        if (collection.CollectionPapers.Any(cp => cp.PaperId == command.PaperId))
-            throw new ConflictException($"Paper '{command.PaperId}' already in collection");
-
-        var maxSortOrder = collection.CollectionPapers.Any()
-            ? collection.CollectionPapers.Max(cp => cp.SortOrder)
-            : 0;
-
-        var collectionPaper = new CollectionPaper
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+        try
         {
-            CollectionId = collection.Id,
-            PaperId = command.PaperId,
-            SortOrder = maxSortOrder + 1,
-            AddedAt = DateTimeOffset.UtcNow
-        };
+            var collection = await _db.Collections
+                .Include(c => c.CollectionPapers)
+                .FirstOrDefaultAsync(c => c.Id == collectionId && c.UserId == userId, cancellationToken)
+                ?? throw new NotFoundException("Collection", collectionId);
 
-        _db.CollectionPapers.Add(collectionPaper);
-        await _db.SaveChangesAsync(cancellationToken);
+            var paperExists = await _db.Papers.AnyAsync(p => p.Id == command.PaperId, cancellationToken);
+            if (!paperExists)
+                throw new NotFoundException("Paper", command.PaperId);
+
+            if (collection.CollectionPapers.Any(cp => cp.PaperId == command.PaperId))
+                throw new ConflictException($"Paper '{command.PaperId}' already in collection");
+
+            var maxSortOrder = collection.CollectionPapers.Any()
+                ? collection.CollectionPapers.Max(cp => cp.SortOrder)
+                : 0;
+
+            var collectionPaper = new CollectionPaper
+            {
+                CollectionId = collection.Id,
+                PaperId = command.PaperId,
+                SortOrder = maxSortOrder + 1,
+                AddedAt = DateTimeOffset.UtcNow
+            };
+
+            _db.CollectionPapers.Add(collectionPaper);
+            await _db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
     public async Task RemovePaperAsync(Guid collectionId, RemovePaperCommand command, int userId, CancellationToken cancellationToken)

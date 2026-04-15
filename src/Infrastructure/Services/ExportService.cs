@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace AutonomousResearchAgent.Infrastructure.Services;
 
-public sealed class ExportService(ILogger<ExportService> logger) : IExportService
+public sealed class ExportService : IExportService
 {
     public string ToBibtex(Guid paperId, string title, IReadOnlyCollection<string> authors, int? year, string? doi, string? venue, int citationCount)
     {

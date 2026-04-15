@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using AutonomousResearchAgent.Domain.Enums;
 
 namespace AutonomousResearchAgent.Domain.Entities;
@@ -11,6 +12,9 @@ public sealed class PaperReadingSession : AuditableEntity
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? FinishedAt { get; set; }
 
+    [ForeignKey(nameof(UserId))]
     public User User { get; set; } = null!;
+
+    [ForeignKey(nameof(PaperId))]
     public Paper Paper { get; set; } = null!;
 }

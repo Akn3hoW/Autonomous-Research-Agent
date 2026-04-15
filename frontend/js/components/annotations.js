@@ -136,7 +136,13 @@ export function renderHighlightOverlay(container, annotations) {
 
 function getUserColor(userId) {
   const colors = ['blue', 'green', 'purple', 'orange', 'red', 'teal'];
-  return colors[Math.abs(userId) % colors.length];
+  let hash = 0;
+  const str = String(userId);
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return colors[Math.abs(hash) % colors.length];
 }
 
 function showAnnotationTooltip(annotation) {

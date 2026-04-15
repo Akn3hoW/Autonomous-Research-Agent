@@ -47,6 +47,7 @@ public sealed class QueryHelpersTests
     {
         var input = new string('a', 300);
         var result = QueryHelpers.Truncate(input, 100);
+        Assert.NotNull(result);
         Assert.Equal(100, result.Length);
         Assert.Equal(new string('a', 100), result);
     }

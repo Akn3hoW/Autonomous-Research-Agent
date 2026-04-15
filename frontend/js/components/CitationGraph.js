@@ -1,4 +1,4 @@
-import { getCitationGraph, ingestCitations } from '../api.js';
+import { getCitationGraph, ingestCitations, escapeHtml } from '../api.js';
 import { h, clear, loading, toast, emptyState } from '../components.js';
 
 export async function renderCitationGraph(container, { paperId, navigate, signal } = {}) {
@@ -240,7 +240,7 @@ function renderForceGraph(container, graph, navigate, currentPaperId) {
     circle.addEventListener('mouseenter', (e) => {
       circle.setAttribute('fill', 'var(--c-primary)');
       tooltip.innerHTML = `
-        <strong>${node.title}</strong><br/>
+        <strong>${escapeHtml(node.title)}</strong><br/>
         <span style="color:var(--c-text-secondary)">Year: ${node.year || 'Unknown'}</span><br/>
         <span style="color:var(--c-text-secondary)">Citations: ${node.citationCount}</span><br/>
         <span style="color:var(--c-text-secondary)">${node.isInDatabase ? 'In Database' : 'External'}</span>

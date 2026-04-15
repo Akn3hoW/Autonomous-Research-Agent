@@ -367,13 +367,16 @@ public sealed class SearchService(
                 .ToListAsync(cancellationToken);
         }
 
-        return dbContext.PaperEmbeddings.Local
+        return await dbContext.PaperEmbeddings
+            .AsNoTracking()
+            .Include(e => e.Paper)
+            .Include(e => e.Summary)
             .Where(e =>
                 e.PaperId != null &&
                 e.Paper != null &&
                 e.Vector != null &&
                 (e.EmbeddingType == EmbeddingType.PaperAbstract || e.EmbeddingType == EmbeddingType.PaperSummary || e.EmbeddingType == EmbeddingType.DocumentChunk))
-            .ToList();
+            .ToListAsync(cancellationToken);
     }
 
     private static bool ContainsIgnoreCase(string? value, string loweredNeedle)

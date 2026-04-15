@@ -16,7 +16,7 @@ using Xunit;
 
 namespace Infrastructure.Tests;
 
-public sealed class PaperDocumentProcessingServiceTests
+public sealed class PaperDocumentProcessingServiceTests : IDisposable
 {
     [Fact]
     public async Task LocalDocumentTextExtractor_extracts_plain_text_bytes()
@@ -103,7 +103,7 @@ public sealed class PaperDocumentProcessingServiceTests
         dbContext.PaperDocuments.Add(document);
         await dbContext.SaveChangesAsync();
 
-        var argumentsFilePath = Path.Combine(Path.GetTempPath(), "ara-ocr-tests", Guid.NewGuid().ToString("N"), "args.txt");
+        var argumentsFilePath = Path.Combine(testDir, "args.txt");
         var service = CreateService(
             dbContext,
             new FakeDocumentTextExtractor(""),
@@ -143,6 +143,14 @@ public sealed class PaperDocumentProcessingServiceTests
         Assert.Null(persisted.ExtractedText);
         Assert.Null(persisted.ExtractedAt);
         Assert.NotNull(persisted.LastError);
+    }
+
+    private static readonly string testDir = Path.Combine(Path.GetTempPath(), "ara-ocr-tests", Guid.NewGuid().ToString("N"));
+
+    public void Dispose()
+    {
+        if (Directory.Exists(testDir))
+            Directory.Delete(testDir, true);
     }
 
     private static PaperDocumentProcessingService CreateService(

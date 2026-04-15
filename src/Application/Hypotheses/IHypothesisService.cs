@@ -44,6 +44,7 @@ public sealed record HypothesisResponse(
     string Title,
     string Description,
     HypothesisStatus Status,
+    int UserId,
     List<HypothesisPaperResponse> SupportingPapers,
     List<HypothesisPaperResponse> RefutingPapers,
     DateTimeOffset CreatedAt,

@@ -144,6 +144,8 @@ public sealed class CollectionsController(
     private int GetUserId()
     {
         var userIdClaim = User.FindFirst("user_id")?.Value;
-        return int.Parse(userIdClaim ?? "0");
+        if (!int.TryParse(userIdClaim, out var userId))
+            throw new UnauthorizedAccessException("User ID not found in token");
+        return userId;
     }
 }

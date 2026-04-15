@@ -13,7 +13,6 @@ namespace AutonomousResearchAgent.Infrastructure.Services;
 
 public sealed class SavedSearchService(
     ApplicationDbContext dbContext,
-    IPaperService paperService,
     ISemanticScholarClient semanticScholarClient,
     IJobService jobService,
     ILogger<SavedSearchService> logger) : ISavedSearchService
@@ -34,20 +33,27 @@ public sealed class SavedSearchService(
 
         var totalCount = await savedSearchesQuery.LongCountAsync(cancellationToken);
 
-        var entities = await savedSearchesQuery
+        var entityIds = await savedSearchesQuery
             .OrderByDescending(s => s.CreatedAt)
             .Skip((query.PageNumber - 1) * query.PageSize)
             .Take(query.PageSize)
+            .Select(e => e.Id)
             .ToListAsync(cancellationToken);
 
         var resultCounts = await dbContext.Jobs
-            .Where(j => entities.Select(e => e.Id).Contains(j.TargetEntityId ?? Guid.Empty) &&
+            .Where(j => entityIds.Contains(j.TargetEntityId ?? Guid.Empty) &&
                         j.Status == JobStatus.Completed)
             .GroupBy(j => j.TargetEntityId)
             .Select(g => new { TargetEntityId = g.Key, Count = g.Count() })
             .ToListAsync(cancellationToken);
 
         var resultCountMap = resultCounts.ToDictionary(r => r.TargetEntityId ?? Guid.Empty, r => r.Count);
+
+        var entities = await savedSearchesQuery
+            .OrderByDescending(s => s.CreatedAt)
+            .Skip((query.PageNumber - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .ToListAsync(cancellationToken);
 
         var items = entities.Select(e => ToModel(e, resultCountMap.GetValueOrDefault(e.Id, 0))).ToList();
 

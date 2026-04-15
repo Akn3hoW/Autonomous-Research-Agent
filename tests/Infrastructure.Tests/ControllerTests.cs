@@ -5,6 +5,7 @@ using AutonomousResearchAgent.Api.Contracts.Papers;
 using AutonomousResearchAgent.Api.Contracts.Search;
 using AutonomousResearchAgent.Api.Contracts.Summaries;
 using AutonomousResearchAgent.Api.Controllers;
+using AutonomousResearchAgent.Application.Citations;
 using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Documents;
 using AutonomousResearchAgent.Application.Jobs;
@@ -24,14 +25,15 @@ public sealed class ControllerTests
     public async Task PapersController_GetPapers_returns_ok_with_paged_response()
     {
         var mockService = new Mock<IPaperService>();
-        var controller = new PapersController(mockService.Object);
+        var mockCitationGraphService = new Mock<ICitationGraphService>();
+        var controller = new PapersController(mockService.Object, mockCitationGraphService.Object);
         var cancellationToken = CancellationToken.None;
 
         var pagedResult = new PagedResult<PaperListItem>(
             new List<PaperListItem>
             {
                 new(Guid.NewGuid(), "Paper 1", new[] { "Author 1" }, 2025, "Venue A", 10, PaperSource.Manual, PaperStatus.Draft, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow),
-                new(Guid.NewGuid(), "Paper 2", new[] { "Author 2" }, 2024, "Venue B", 5, PaperSource.SemanticScholar, PaperStatus.Published, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)
+                new(Guid.NewGuid(), "Paper 2", new[] { "Author 2" }, 2024, "Venue B", 5, PaperSource.SemanticScholar, PaperStatus.Ready, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)
             },
             1,
             25,
@@ -54,7 +56,8 @@ public sealed class ControllerTests
     public async Task PapersController_GetPaper_returns_ok_with_paper_detail()
     {
         var mockService = new Mock<IPaperService>();
-        var controller = new PapersController(mockService.Object);
+        var mockCitationGraphService = new Mock<ICitationGraphService>();
+        var controller = new PapersController(mockService.Object, mockCitationGraphService.Object);
         var paperId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -77,7 +80,8 @@ public sealed class ControllerTests
     public async Task PapersController_CreatePaper_returns_created_with_paper_detail()
     {
         var mockService = new Mock<IPaperService>();
-        var controller = new PapersController(mockService.Object);
+        var mockCitationGraphService = new Mock<ICitationGraphService>();
+        var controller = new PapersController(mockService.Object, mockCitationGraphService.Object);
         var cancellationToken = CancellationToken.None;
 
         var request = new CreatePaperRequest
@@ -107,14 +111,15 @@ public sealed class ControllerTests
     public async Task PapersController_UpdatePaper_returns_ok_with_updated_paper()
     {
         var mockService = new Mock<IPaperService>();
-        var controller = new PapersController(mockService.Object);
+        var mockCitationGraphService = new Mock<ICitationGraphService>();
+        var controller = new PapersController(mockService.Object, mockCitationGraphService.Object);
         var paperId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
         var request = new UpdatePaperRequest { Title = "Updated Title" };
 
         var updated = new PaperDetail(
-            paperId, null, null, "Updated Title", null, null, null, null, null,
+            paperId, null, null, "Updated Title", null, Array.Empty<string>(), 0, null, 0,
             PaperSource.Manual, PaperStatus.Draft, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
 
         mockService.Setup(s => s.UpdateAsync(paperId, It.IsAny<UpdatePaperCommand>(), cancellationToken))
@@ -466,7 +471,7 @@ public sealed class ControllerTests
 
         var documents = new List<PaperDocumentModel>
         {
-            new(Guid.NewGuid(), paperId, "url", "file.pdf", "application/pdf", "path", PaperDocumentStatus.Processed, false, "text", null, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)
+            new(Guid.NewGuid(), paperId, "url", "file.pdf", "application/pdf", "path", PaperDocumentStatus.Extracted, false, "text", null, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)
         };
 
         mockService.Setup(s => s.ListByPaperIdAsync(paperId, cancellationToken))
@@ -489,7 +494,7 @@ public sealed class ControllerTests
         var cancellationToken = CancellationToken.None;
 
         var document = new PaperDocumentModel(
-            documentId, paperId, "url", "file.pdf", "application/pdf", "path", PaperDocumentStatus.Processed, false, "text", null, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+            documentId, paperId, "url", "file.pdf", "application/pdf", "path", PaperDocumentStatus.Extracted, false, "text", null, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
 
         mockService.Setup(s => s.GetByIdAsync(paperId, documentId, cancellationToken))
             .ReturnsAsync(document);

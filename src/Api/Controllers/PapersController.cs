@@ -7,6 +7,7 @@ using AutonomousResearchAgent.Application.Papers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using System.ComponentModel.DataAnnotations;
 
 namespace AutonomousResearchAgent.Api.Controllers;
 
@@ -103,7 +104,7 @@ public sealed class PapersController(
     [Authorize(Policy = PolicyNames.ReadAccess)]
     [ProducesResponseType(typeof(CitationGraphResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<CitationGraphResponse>> GetCitationGraph(Guid id, [FromQuery] int depth = 2, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<CitationGraphResponse>> GetCitationGraph(Guid id, [FromQuery][Range(1, 10)] int depth = 2, CancellationToken cancellationToken = default)
     {
         var graph = await citationGraphService.GetCitationGraphAsync(id, depth, cancellationToken);
         return Ok(graph.ToDto());

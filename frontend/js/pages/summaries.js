@@ -93,15 +93,21 @@ export async function render(container, { navigate, params }) {
         summaries = await getPaperSummaries(currentParams.paperId).catch(() => []);
       } else {
         const data = await getPapers({ pageSize: 100 });
-        const paperSummariesPromises = data.items.map(async (paper) => {
-          papersMap[paper.id] = paper;
-          try {
-            return await getPaperSummaries(paper.id);
-          } catch {
-            return [];
-          }
-        });
-        const results = await Promise.all(paperSummariesPromises);
+        const BATCH_SIZE = 5;
+        const results = [];
+        for (let i = 0; i < data.items.length; i += BATCH_SIZE) {
+          const batch = data.items.slice(i, i + BATCH_SIZE);
+          const batchPromises = batch.map(async (paper) => {
+            papersMap[paper.id] = paper;
+            try {
+              return await getPaperSummaries(paper.id);
+            } catch {
+              return [];
+            }
+          });
+          const batchResults = await Promise.all(batchPromises);
+          results.push(...batchResults);
+        }
         summaries = results.flat();
       }
 

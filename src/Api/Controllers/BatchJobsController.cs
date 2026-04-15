@@ -17,9 +17,7 @@ namespace AutonomousResearchAgent.Api.Controllers;
 [Route("api/v1")]
 public sealed class BatchJobsController(
     IBatchJobService batchJobService,
-    IJobService jobService,
-    IPaperService paperService,
-    ICollectionService collectionService) : ControllerBase
+    IJobService jobService) : ControllerBase
 {
     [HttpPost("papers/batch")]
     [Authorize(Policy = PolicyNames.EditAccess)]
@@ -28,7 +26,9 @@ public sealed class BatchJobsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<BatchJobDto>> CreateBatchJob([FromBody] BatchOperationRequest request, CancellationToken cancellationToken)
     {
-        var userId = User.GetUserId() ?? 0;
+        var userId = User.GetUserId();
+        if (userId == null)
+            return Unauthorized();
 
         if (request.PaperIds.Count == 0)
         {
@@ -42,7 +42,7 @@ public sealed class BatchJobsController(
         }
 
         var batchJob = await batchJobService.CreateAsync(
-            new CreateBatchJobCommand(request.Action.ToLowerInvariant(), userId, request.PaperIds.Count),
+            new CreateBatchJobCommand(request.Action.ToLowerInvariant(), userId!.Value, request.PaperIds.Count),
             cancellationToken);
 
         var normalizedAction = request.Action.ToLowerInvariant();
@@ -130,8 +130,10 @@ public sealed class BatchJobsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<BatchJobDto>> GetBatchJob(Guid id, CancellationToken cancellationToken)
     {
-        var userId = User.GetUserId() ?? 0;
-        var batchJob = await batchJobService.GetByIdAsync(id, userId, cancellationToken);
+        var userId = User.GetUserId();
+        if (userId == null)
+            return Unauthorized();
+        var batchJob = await batchJobService.GetByIdAsync(id, userId.Value, cancellationToken);
         return Ok(new BatchJobDto(
             batchJob.Id,
             batchJob.Action,

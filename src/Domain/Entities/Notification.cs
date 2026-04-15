@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace AutonomousResearchAgent.Domain.Entities;
 
 public sealed class Notification : AuditableEntity
@@ -7,4 +9,7 @@ public sealed class Notification : AuditableEntity
     public string Message { get; set; } = string.Empty;
     public string? LinkUrl { get; set; }
     public bool IsRead { get; set; } = false;
+
+    [ForeignKey(nameof(UserId))]
+    public User? User { get; set; }
 }

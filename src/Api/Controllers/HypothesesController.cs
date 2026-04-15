@@ -58,8 +58,17 @@ public sealed class HypothesesController(IHypothesisService hypothesisService) :
     [Authorize(Policy = PolicyNames.EditAccess)]
     [ProducesResponseType(typeof(HypothesisResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<HypothesisResponse>> UpdateHypothesis(Guid id, [FromBody] UpdateHypothesisRequest request, CancellationToken cancellationToken)
     {
+        var userIdClaim = User.FindFirst("user_id")?.Value;
+        if (!int.TryParse(userIdClaim, out var userId))
+            return Unauthorized();
+        var existing = await hypothesisService.GetByIdAsync(id, cancellationToken);
+        if (existing == null)
+            return NotFound();
+        if (existing.UserId != userId)
+            return Forbid();
         var command = new UpdateHypothesisCommand(request.Title, request.Description);
         var updated = await hypothesisService.UpdateAsync(id, command, cancellationToken);
         return Ok(updated);
@@ -81,8 +90,17 @@ public sealed class HypothesesController(IHypothesisService hypothesisService) :
     [Authorize(Policy = PolicyNames.EditAccess)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> DeleteHypothesis(Guid id, CancellationToken cancellationToken)
     {
+        var userIdClaim = User.FindFirst("user_id")?.Value;
+        if (!int.TryParse(userIdClaim, out var userId))
+            return Unauthorized();
+        var existing = await hypothesisService.GetByIdAsync(id, cancellationToken);
+        if (existing == null)
+            return NotFound();
+        if (existing.UserId != userId)
+            return Forbid();
         await hypothesisService.DeleteAsync(id, cancellationToken);
         return NoContent();
     }

@@ -9,7 +9,7 @@ public sealed record LiteratureReviewSection(
 
 public sealed record LiteratureReviewModel(
     Guid Id,
-    Guid UserId,
+    int UserId,
     string Title,
     string ResearchQuestion,
     string? ContentJson,
@@ -21,7 +21,7 @@ public sealed record LiteratureReviewModel(
 
 public sealed record LiteratureReviewDetail(
     Guid Id,
-    Guid UserId,
+    int UserId,
     string Title,
     string ResearchQuestion,
     IReadOnlyList<LiteratureReviewSection> Sections,

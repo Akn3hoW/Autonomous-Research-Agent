@@ -33,6 +33,7 @@ public static class ServiceCollectionExtensions
         services.AddAuthorizationPolicies();
         services.AddApiValidators();
         services.AddStartupFilter<JwtSigningKeyValidator>();
+        services.AddStartupFilter<DatabaseHealthCheck>();
         services.AddRateLimitingPolicies();
 
         return services;

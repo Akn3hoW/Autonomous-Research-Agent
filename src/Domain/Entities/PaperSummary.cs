@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using AutonomousResearchAgent.Domain.Enums;
 
 namespace AutonomousResearchAgent.Domain.Entities;
@@ -14,7 +15,9 @@ public sealed class PaperSummary : AuditableEntity
     public DateTimeOffset? ReviewedAt { get; set; }
     public string? ReviewNotes { get; set; }
 
+    [ForeignKey(nameof(PaperId))]
     public Paper? Paper { get; set; }
+
     public ICollection<PaperEmbedding> Embeddings { get; set; } = [];
 }
 

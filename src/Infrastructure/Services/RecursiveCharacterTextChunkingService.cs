@@ -14,6 +14,7 @@ public sealed class RecursiveCharacterTextChunkingService : ITextChunkingService
         var chunks = new List<TextChunk>();
         var separators = DefaultSeparators;
         var effectiveOverlap = Math.Min(overlap, chunkSize / 2);
+        if (effectiveOverlap >= chunkSize) effectiveOverlap = chunkSize / 2;
 
         var startIndex = 0;
         var chunkIndex = 0;

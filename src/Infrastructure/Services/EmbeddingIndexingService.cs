@@ -10,6 +10,7 @@ namespace AutonomousResearchAgent.Infrastructure.Services;
 public interface IEmbeddingIndexingService
 {
     Task UpsertPaperAbstractAsync(Paper paper, CancellationToken cancellationToken);
+    Task UpsertPaperAbstractAsync(IEnumerable<Paper> papers, CancellationToken cancellationToken);
     Task UpsertSummaryAsync(PaperSummary summary, CancellationToken cancellationToken);
     Task UpsertDocumentChunkAsync(DocumentChunk chunk, CancellationToken cancellationToken);
     Task UpsertDocumentChunksAsync(IEnumerable<DocumentChunk> chunks, CancellationToken cancellationToken);
@@ -25,6 +26,61 @@ public sealed class EmbeddingIndexingService(
 
     public Task UpsertPaperAbstractAsync(Paper paper, CancellationToken cancellationToken)
         => UpsertPaperEmbeddingAsync(paper.Id, null, null, EmbeddingType.PaperAbstract, paper.Abstract, cancellationToken);
+
+    public async Task UpsertPaperAbstractAsync(IEnumerable<Paper> papers, CancellationToken cancellationToken)
+    {
+        var paperList = papers.ToList();
+        if (paperList.Count == 0)
+            return;
+
+        var embeddingsToAdd = new List<PaperEmbedding>();
+
+        foreach (var paper in paperList)
+        {
+            var existing = await dbContext.PaperEmbeddings
+                .FirstOrDefaultAsync(e =>
+                    e.PaperId == paper.Id &&
+                    e.SummaryId == null &&
+                    e.DocumentChunkId == null &&
+                    e.EmbeddingType == EmbeddingType.PaperAbstract,
+                    cancellationToken);
+
+            if (string.IsNullOrWhiteSpace(paper.Abstract))
+            {
+                if (existing is not null)
+                {
+                    dbContext.PaperEmbeddings.Remove(existing);
+                }
+                continue;
+            }
+
+            var vector = await embeddingClient.GenerateEmbeddingAsync(paper.Abstract.Trim(), cancellationToken);
+
+            if (existing is null)
+            {
+                embeddingsToAdd.Add(new PaperEmbedding
+                {
+                    PaperId = paper.Id,
+                    EmbeddingType = EmbeddingType.PaperAbstract,
+                    ModelName = _options.ModelName,
+                    Vector = vector
+                });
+            }
+            else
+            {
+                existing.ModelName = _options.ModelName;
+                existing.Vector = vector;
+            }
+        }
+
+        if (embeddingsToAdd.Count > 0)
+        {
+            dbContext.PaperEmbeddings.AddRange(embeddingsToAdd);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Upserted {Count} paper abstract embeddings", paperList.Count);
+    }
 
     public async Task UpsertSummaryAsync(PaperSummary summary, CancellationToken cancellationToken)
     {
@@ -44,10 +100,59 @@ public sealed class EmbeddingIndexingService(
 
     public async Task UpsertDocumentChunksAsync(IEnumerable<DocumentChunk> chunks, CancellationToken cancellationToken)
     {
-        foreach (var chunk in chunks)
+        var chunkList = chunks.ToList();
+        if (chunkList.Count == 0)
+            return;
+
+        var embeddingsToAdd = new List<PaperEmbedding>();
+
+        foreach (var chunk in chunkList)
         {
-            await UpsertDocumentChunkEmbeddingAsync(chunk, cancellationToken);
+            var existing = await dbContext.PaperEmbeddings
+                .FirstOrDefaultAsync(e =>
+                    e.DocumentChunkId == chunk.Id &&
+                    e.EmbeddingType == EmbeddingType.DocumentChunk,
+                    cancellationToken);
+
+            if (string.IsNullOrWhiteSpace(chunk.Text))
+            {
+                if (existing is not null)
+                {
+                    dbContext.PaperEmbeddings.Remove(existing);
+                }
+                continue;
+            }
+
+            var vector = await embeddingClient.GenerateEmbeddingAsync(chunk.Text.Trim(), cancellationToken);
+
+            if (existing is null)
+            {
+                embeddingsToAdd.Add(new PaperEmbedding
+                {
+                    PaperId = chunk.PaperDocument?.PaperId ?? chunk.PaperDocumentId,
+                    DocumentChunkId = chunk.Id,
+                    EmbeddingType = EmbeddingType.DocumentChunk,
+                    ModelName = _options.ModelName,
+                    Vector = vector
+                });
+            }
+            else
+            {
+                existing.PaperId = chunk.PaperDocument?.PaperId ?? chunk.PaperDocumentId;
+                existing.DocumentChunkId = chunk.Id;
+                existing.EmbeddingType = EmbeddingType.DocumentChunk;
+                existing.ModelName = _options.ModelName;
+                existing.Vector = vector;
+            }
         }
+
+        if (embeddingsToAdd.Count > 0)
+        {
+            dbContext.PaperEmbeddings.AddRange(embeddingsToAdd);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Upserted {Count} document chunk embeddings", chunkList.Count);
     }
 
     private async Task UpsertPaperEmbeddingAsync(

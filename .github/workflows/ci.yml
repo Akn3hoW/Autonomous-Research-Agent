@@ -17,11 +17,28 @@ jobs:
         with:
           dotnet-version: '9.0'
 
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
       - name: Restore
         run: dotnet restore AutonomousResearchAgent.sln
 
       - name: Build
         run: dotnet build AutonomousResearchAgent.sln --configuration Release --no-restore
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build
+          path: |
+            src/**/bin/Release/
+            !src/**/bin/Release/**/ref/
+          retention-days: 1
 
   validate-migrations:
     runs-on: ubuntu-latest
@@ -33,6 +50,11 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0'
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-build
 
       - name: Validate migrations
         run: |
@@ -49,6 +71,11 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0'
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-build
 
       - name: Test
         run: dotnet test AutonomousResearchAgent.sln --configuration Release --no-build --verbosity normal

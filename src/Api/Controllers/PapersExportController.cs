@@ -12,6 +12,8 @@ public sealed class PapersExportController(
     IPaperService paperService,
     IExportService exportService) : ControllerBase
 {
+    private const int MaxPages = 100;
+
     [HttpGet("export")]
     [Authorize(Policy = PolicyNames.ReadAccess)]
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
@@ -22,6 +24,15 @@ public sealed class PapersExportController(
         [FromQuery] int pageSize = 100,
         CancellationToken cancellationToken = default)
     {
+        if (pageNumber < 1 || pageSize < 1)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Invalid pagination parameters",
+                Detail = "Page number and page size must be positive."
+            });
+        }
+
         if (string.Equals(format, "bibtex", StringComparison.OrdinalIgnoreCase))
         {
             return await ExportAllPapersAsBibtex(pageNumber, pageSize, cancellationToken);
@@ -43,9 +54,16 @@ public sealed class PapersExportController(
     {
         var allBibtex = new List<string>();
         var currentPage = pageNumber;
+        var maxPagesReached = false;
 
         while (true)
         {
+            if (currentPage - pageNumber + 1 > MaxPages)
+            {
+                maxPagesReached = true;
+                break;
+            }
+
             var query = new PaperQuery(currentPage, pageSize);
             var result = await paperService.ListAsync(query, cancellationToken);
 
@@ -68,6 +86,15 @@ public sealed class PapersExportController(
             currentPage++;
         }
 
+        if (maxPagesReached)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Page limit exceeded",
+                Detail = $"Export limited to {MaxPages} pages. Use a smaller page size or narrower date range."
+            });
+        }
+
         var content = string.Join("\n\n", allBibtex);
         return File(System.Text.Encoding.UTF8.GetBytes(content), "application/x-bibtex", "papers.bib");
     }
@@ -76,9 +103,16 @@ public sealed class PapersExportController(
     {
         var allRis = new List<string>();
         var currentPage = pageNumber;
+        var maxPagesReached = false;
 
         while (true)
         {
+            if (currentPage - pageNumber + 1 > MaxPages)
+            {
+                maxPagesReached = true;
+                break;
+            }
+
             var query = new PaperQuery(currentPage, pageSize);
             var result = await paperService.ListAsync(query, cancellationToken);
 
@@ -99,6 +133,15 @@ public sealed class PapersExportController(
                 break;
 
             currentPage++;
+        }
+
+        if (maxPagesReached)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Page limit exceeded",
+                Detail = $"Export limited to {MaxPages} pages. Use a smaller page size or narrower date range."
+            });
         }
 
         var content = string.Join("\n", allRis);

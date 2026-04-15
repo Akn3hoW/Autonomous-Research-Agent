@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using AutonomousResearchAgent.Domain.Enums;
 
 namespace AutonomousResearchAgent.Domain.Entities;
@@ -12,7 +13,10 @@ public sealed class Job : AuditableEntity
     public Guid? TargetEntityId { get; set; }
     public string? CreatedBy { get; set; }
     public Guid? ParentJobId { get; set; }
+
+    [ForeignKey(nameof(ParentJobId))]
     public Job? ParentJob { get; set; }
+
     public ICollection<Job> ChildJobs { get; set; } = [];
 }
 

@@ -4,6 +4,7 @@ import { ApiError } from '../api.js';
 
 let collections = [];
 let allPapers = [];
+let papersCache = null;
 let draggedPaperId = null;
 let dragSourceCollectionId = null;
 
@@ -28,6 +29,7 @@ export async function render(container, { navigate }) {
 }
 
 async function loadCollections() {
+  papersCache = null;
   const board = document.getElementById('collections-board');
   if (!board) return;
   clear(board);
@@ -60,6 +62,7 @@ async function loadCollections() {
 }
 
 async function getAllPapers() {
+  if (papersCache) return papersCache;
   const papers = [];
   let page = 1;
   while (true) {
@@ -68,6 +71,7 @@ async function getAllPapers() {
     if (page >= data.totalPages) break;
     page++;
   }
+  papersCache = papers;
   return papers;
 }
 

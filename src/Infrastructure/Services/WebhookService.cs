@@ -72,7 +72,7 @@ public sealed class WebhookService(
     {
         var eventName = payload.Event;
         var webhooks = await dbContext.UserWebhooks
-            .Where(w => w.IsActive && w.Events.Contains(eventName))
+            .Where(w => w.IsActive && w.Events.Any(e => e == eventName))
             .ToListAsync(cancellationToken);
 
         if (webhooks.Count == 0)

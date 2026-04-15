@@ -1,8 +1,9 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace AutonomousResearchAgent.Domain.Entities;
 
-public sealed class AuditEvent
+public sealed class AuditEvent : AuditableEntity
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
     public Guid? UserId { get; set; }
     public string EntityType { get; set; } = string.Empty;
     public Guid? EntityId { get; set; }
@@ -10,5 +11,6 @@ public sealed class AuditEvent
     public string? DiffJson { get; set; }
     public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
 
+    [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
 }

@@ -57,23 +57,19 @@ public sealed class ConceptService : IConceptService
 
     public async Task<ConceptStatistics> GetStatisticsAsync(CancellationToken cancellationToken)
     {
-        var concepts = await _dbContext.PaperConcepts
+        var byType = await _dbContext.PaperConcepts
             .AsNoTracking()
-            .Include(c => c.Paper)
-            .ToListAsync(cancellationToken);
-
-        var byType = concepts
             .GroupBy(c => c.ConceptType)
             .Select(g => new ConceptTypeCount(
                 g.Key,
                 g.Count(),
                 g.Select(c => c.PaperId).Distinct().Count()))
-            .ToList();
+            .ToListAsync(cancellationToken);
 
-        return new ConceptStatistics(
-            byType,
-            concepts.Count,
-            concepts.Select(c => c.PaperId).Distinct().Count());
+        var totalCount = await _dbContext.PaperConcepts.LongCountAsync(cancellationToken);
+        var uniquePaperCount = await _dbContext.PaperConcepts.Select(c => c.PaperId).Distinct().CountAsync(cancellationToken);
+
+        return new ConceptStatistics(byType, (int)totalCount, uniquePaperCount);
     }
 
     public async Task<Guid> CreateJobAsync(string? createdBy, CancellationToken cancellationToken)

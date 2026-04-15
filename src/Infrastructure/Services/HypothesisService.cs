@@ -32,11 +32,10 @@ public sealed class HypothesisService(
             {
                 var hp = new HypothesisPaper
                 {
+                    HypothesisId = entity.Id,
                     PaperId = paper.PaperId,
                     EvidenceType = paper.EvidenceType,
-                    EvidenceText = paper.EvidenceText,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    UpdatedAt = DateTimeOffset.UtcNow
+                    EvidenceText = paper.EvidenceText
                 };
                 entity.HypothesisPapers.Add(hp);
             }
@@ -286,7 +285,9 @@ public sealed class HypothesisService(
 
     private static int GetUserIdFromAnalysis(AnalysisResult analysisResult)
     {
-        return 1;
+        if (int.TryParse(analysisResult.CreatedBy, out var userId))
+            return userId;
+        return 0;
     }
 
     private static List<string> ParseEvidenceJson(string? json)
@@ -329,6 +330,7 @@ public sealed class HypothesisService(
             entity.Title,
             entity.Description,
             entity.Status,
+            entity.UserId,
             supportingPapers,
             refutingPapers,
             entity.CreatedAt,
