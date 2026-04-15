@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/papers/duplicates")]
+[Route($"{ApiConstants.ApiPrefix}/papers/duplicates")]
 public sealed class DuplicateDetectionController(IDuplicateDetectionService duplicateDetectionService) : ControllerBase
 {
     [HttpGet]
@@ -45,8 +45,7 @@ public sealed class DuplicateDetectionController(IDuplicateDetectionService dupl
         [FromBody] ResolveDuplicateRequest request,
         CancellationToken cancellationToken)
     {
-        var userIdClaim = User.FindFirst("user_id")?.Value;
-        int? userId = int.TryParse(userIdClaim, out var uid) ? uid : null;
+        var userId = User.GetUserId();
         await duplicateDetectionService.ResolveDuplicateAsync(
             id,
             request.IsDuplicate,
@@ -67,8 +66,7 @@ public sealed class DuplicateDetectionController(IDuplicateDetectionService dupl
         [FromBody] MergeDuplicateRequest request,
         CancellationToken cancellationToken)
     {
-        var userIdClaim = User.FindFirst("user_id")?.Value;
-        int? userId = int.TryParse(userIdClaim, out var uid) ? uid : null;
+        var userId = User.GetUserId();
         await duplicateDetectionService.MergeDuplicatePapersAsync(
             request.KeepPaperId,
             request.MergeIntoPaperId,

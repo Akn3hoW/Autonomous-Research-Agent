@@ -1,3 +1,4 @@
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -86,33 +87,61 @@ public sealed class WebhookService(
 
     private async Task DeliverToWebhookAsync(UserWebhook webhook, string jsonPayload, CancellationToken cancellationToken)
     {
-        try
+        var client = httpClientFactory.CreateClient("Webhooks");
+        var signature = ComputeHmacSignature(jsonPayload, webhook.Secret);
+        const int maxRetries = 3;
+
+        for (var attempt = 0; attempt <= maxRetries; attempt++)
         {
-            var client = httpClientFactory.CreateClient("Webhooks");
-            var signature = ComputeHmacSignature(jsonPayload, webhook.Secret);
+            try
+            {
+                var request = new HttpRequestMessage(HttpMethod.Post, webhook.Url)
+                {
+                    Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
+                };
+                request.Headers.Add("X-Webhook-Signature", signature);
+                request.Headers.Add("X-Webhook-Id", webhook.Id.ToString());
 
-            var request = new HttpRequestMessage(HttpMethod.Post, webhook.Url)
-            {
-                Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
-            };
-            request.Headers.Add("X-Webhook-Signature", signature);
-            request.Headers.Add("X-Webhook-Id", webhook.Id.ToString());
+                var response = await client.SendAsync(request, cancellationToken);
+                if (response.IsSuccessStatusCode)
+                {
+                    logger.LogDebug("Delivered webhook {WebhookId} to {Url}", webhook.Id, webhook.Url);
+                    return;
+                }
 
-            var response = await client.SendAsync(request, cancellationToken);
-            if (response.IsSuccessStatusCode)
-            {
-                logger.LogDebug("Delivered webhook {WebhookId} to {Url}", webhook.Id, webhook.Url);
-            }
-            else
-            {
                 logger.LogWarning("Webhook delivery failed for {WebhookId}: {StatusCode}", webhook.Id, response.StatusCode);
+
+                if (attempt < maxRetries && IsRetryableStatusCode(response.StatusCode))
+                {
+                    var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt) * 2);
+                    logger.LogInformation("Retrying webhook {WebhookId} in {Delay}s (attempt {Attempt}/{MaxRetries})",
+                        webhook.Id, delay.TotalSeconds, attempt + 1, maxRetries);
+                    await Task.Delay(delay, cancellationToken);
+                    continue;
+                }
+
+                return;
             }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to deliver webhook {WebhookId} to {Url}", webhook.Id, webhook.Url);
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                logger.LogWarning(ex, "Webhook delivery attempt {Attempt} failed for {WebhookId}, retrying",
+                    attempt + 1, webhook.Id);
+                var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt) * 2);
+                await Task.Delay(delay, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to deliver webhook {WebhookId} to {Url} after {MaxRetries} attempts",
+                    webhook.Id, webhook.Url, maxRetries);
+            }
         }
     }
+
+    private static bool IsRetryableStatusCode(HttpStatusCode statusCode) =>
+        statusCode == HttpStatusCode.RequestTimeout ||
+        statusCode == HttpStatusCode.BadGateway ||
+        statusCode == HttpStatusCode.ServiceUnavailable ||
+        statusCode == HttpStatusCode.GatewayTimeout;
 
     private static string ComputeHmacSignature(string payload, string secret)
     {

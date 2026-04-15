@@ -63,6 +63,11 @@ public sealed class PaperService(
 
         var totalCount = await papersQuery.LongCountAsync(cancellationToken);
 
+        if (userId.HasValue)
+        {
+            papersQuery = papersQuery.Where(p => !p.PaperTags.Any() || p.PaperTags.Any(pt => pt.UserId == userId.Value));
+        }
+
         var papers = await papersQuery
             .Skip((query.PageNumber - 1) * query.PageSize)
             .Take(query.PageSize)
@@ -73,12 +78,7 @@ public sealed class PaperService(
         {
             foreach (var paper in papers)
             {
-                var filteredTags = paper.PaperTags.Where(pt => pt.UserId == userId.Value).ToList();
-                paper.PaperTags.Clear();
-                foreach (var tag in filteredTags)
-                {
-                    paper.PaperTags.Add(tag);
-                }
+                paper.PaperTags = paper.PaperTags.Where(pt => pt.UserId == userId.Value).ToList();
             }
         }
 

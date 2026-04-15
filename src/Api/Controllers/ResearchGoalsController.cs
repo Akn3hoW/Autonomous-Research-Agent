@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/research-goals")]
+[Route($"{ApiConstants.ApiPrefix}/research-goals")]
 public sealed class ResearchGoalsController(IResearchGoalService researchGoalService) : ControllerBase
 {
     [HttpPost]

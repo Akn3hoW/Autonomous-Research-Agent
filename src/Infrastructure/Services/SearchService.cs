@@ -6,6 +6,7 @@ using AutonomousResearchAgent.Domain.Enums;
 using AutonomousResearchAgent.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using Npgsql.EntityFrameworkCore.PostgreSQL;
 using NpgsqlTypes;
@@ -14,13 +15,21 @@ using Pgvector;
 namespace AutonomousResearchAgent.Infrastructure.Services;
 
 public sealed class SearchService(
-    ApplicationDbContext dbContext,
+    IDbContextFactory<ApplicationDbContext> dbContextFactory,
     IEmbeddingService embeddingService,
+    IOptions<SearchWeightsOptions> searchWeightsOptions,
     ILogger<SearchService> logger) : ISearchService
 {
+    private readonly SearchWeightsOptions _searchWeights = searchWeightsOptions.Value;
     public async Task<PagedResult<SearchResultModel>> SearchAsync(SearchRequestModel request, CancellationToken cancellationToken)
     {
-        if (IsPostgres())
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        return await SearchWithContextAsync(dbContext, request, cancellationToken);
+    }
+
+    private async Task<PagedResult<SearchResultModel>> SearchWithContextAsync(ApplicationDbContext dbContext, SearchRequestModel request, CancellationToken cancellationToken)
+    {
+        if (IsPostgres(dbContext))
         {
             var pattern = QueryHelpers.ToILikePattern(request.Query);
 
@@ -34,6 +43,11 @@ public sealed class SearchService(
 
             var totalCount = await filteredQuery.LongCountAsync(cancellationToken);
 
+            var titleWeight = _searchWeights.Title;
+            var abstractWeight = _searchWeights.Abstract;
+            var summaryWeight = _searchWeights.Summary;
+            var documentWeight = _searchWeights.Document;
+
             var rankedQuery = filteredQuery
                 .Select(p => new
                 {
@@ -43,10 +57,10 @@ public sealed class SearchService(
                     MatchedInSummary = p.Summaries.Any(s => s.SearchText != null && EF.Functions.ILike(s.SearchText, pattern)),
                     MatchedInDocument = p.Documents.Any(d => d.ExtractedText != null && EF.Functions.ILike(d.ExtractedText, pattern)),
                     Score =
-                        (EF.Functions.ILike(p.Title, pattern) ? 1.0 : 0.0) +
-                        ((p.Abstract != null && EF.Functions.ILike(p.Abstract, pattern)) ? 0.6 : 0.0) +
-                        (p.Summaries.Any(s => s.SearchText != null && EF.Functions.ILike(s.SearchText, pattern)) ? 0.4 : 0.0) +
-                        (p.Documents.Any(d => d.ExtractedText != null && EF.Functions.ILike(d.ExtractedText, pattern)) ? 0.5 : 0.0)
+                        (EF.Functions.ILike(p.Title, pattern) ? titleWeight : 0.0) +
+                        ((p.Abstract != null && EF.Functions.ILike(p.Abstract, pattern)) ? abstractWeight : 0.0) +
+                        (p.Summaries.Any(s => s.SearchText != null && EF.Functions.ILike(s.SearchText, pattern)) ? summaryWeight : 0.0) +
+                        (p.Documents.Any(d => d.ExtractedText != null && EF.Functions.ILike(d.ExtractedText, pattern)) ? documentWeight : 0.0)
                 });
 
             var rankedPapers = await rankedQuery
@@ -87,11 +101,7 @@ public sealed class SearchService(
                 x.MatchedInAbstract,
                 x.MatchedInSummary,
                 x.MatchedInDocument,
-                Score =
-                    (x.MatchedInTitle ? 1.0 : 0.0) +
-                    (x.MatchedInAbstract ? 0.6 : 0.0) +
-                    (x.MatchedInSummary ? 0.4 : 0.0) +
-                    (x.MatchedInDocument ? 0.5 : 0.0)
+                Score = ComputeKeywordScore(x.MatchedInTitle, x.MatchedInAbstract, x.MatchedInSummary, x.MatchedInDocument)
             })
             .OrderByDescending(x => x.Score)
             .ThenByDescending(x => x.Paper.UpdatedAt)
@@ -113,12 +123,14 @@ public sealed class SearchService(
     {
         var queryEmbedding = await embeddingService.GenerateQueryEmbeddingAsync(request.Query, cancellationToken);
 
-        if (IsPostgres())
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        if (IsPostgres(dbContext))
         {
-            return await SemanticSearchWithDatabaseScoringAsync(queryEmbedding, request, cancellationToken);
+            return await SemanticSearchWithDatabaseScoringAsync(dbContext, queryEmbedding, request, cancellationToken);
         }
 
-        var candidates = await LoadSemanticCandidatesAsync(cancellationToken);
+        var candidates = await LoadSemanticCandidatesAsync(dbContext, cancellationToken);
 
         if (candidates.Count == 0)
         {
@@ -187,7 +199,7 @@ public sealed class SearchService(
         return new PagedResult<SearchResultModel>(pageItems, request.PageNumber, request.PageSize, totalCount);
     }
 
-    private async Task<PagedResult<SearchResultModel>> SemanticSearchWithDatabaseScoringAsync(float[] queryEmbedding, SemanticSearchRequestModel request, CancellationToken cancellationToken)
+    private async Task<PagedResult<SearchResultModel>> SemanticSearchWithDatabaseScoringAsync(ApplicationDbContext dbContext, float[] queryEmbedding, SemanticSearchRequestModel request, CancellationToken cancellationToken)
     {
         await using var command = dbContext.Database.GetDbConnection().CreateCommand();
         command.CommandText = $@"
@@ -197,10 +209,11 @@ public sealed class SearchService(
               AND pe.""Vector"" IS NOT NULL
               AND (pe.""EmbeddingType"" = 'PaperAbstract' OR pe.""EmbeddingType"" = 'PaperSummary')
             ORDER BY pe.""Vector"" <-> @query_embedding
-            LIMIT {request.MaxCandidates}";
+            LIMIT @maxCandidates";
 
         var embeddingParam = new NpgsqlParameter("query_embedding", new Vector(queryEmbedding));
         command.Parameters.Add(embeddingParam);
+        command.Parameters.Add(new NpgsqlParameter("maxCandidates", request.MaxCandidates));
 
         await dbContext.Database.OpenConnectionAsync(cancellationToken);
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -277,17 +290,20 @@ public sealed class SearchService(
         return new PagedResult<SearchResultModel>(mappedFallback, fallback.PageNumber, fallback.PageSize, fallback.TotalCount);
     }
 
-    // TODO: These two searches are independent and could run concurrently via Task.WhenAll
-    // once an IDbContextFactory is available (DbContext is not thread-safe).
     public async Task<PagedResult<SearchResultModel>> HybridSearchAsync(HybridSearchRequestModel request, CancellationToken cancellationToken)
     {
-        var keywordResults = await SearchAsync(
+        var keywordTask = SearchAsync(
             new SearchRequestModel(request.Query, 1, request.MaxCandidates),
             cancellationToken);
 
-        var semanticResults = await SemanticSearchAsync(
+        var semanticTask = SemanticSearchAsync(
             new SemanticSearchRequestModel(request.Query, 1, request.MaxCandidates, request.MaxCandidates),
             cancellationToken);
+
+        await Task.WhenAll(keywordTask, semanticTask);
+
+        var keywordResults = await keywordTask;
+        var semanticResults = await semanticTask;
 
         var combined = keywordResults.Items
             .Concat(semanticResults.Items)
@@ -351,9 +367,9 @@ public sealed class SearchService(
             });
     }
 
-    private async Task<List<PaperEmbedding>> LoadSemanticCandidatesAsync(CancellationToken cancellationToken)
+    private async Task<List<PaperEmbedding>> LoadSemanticCandidatesAsync(ApplicationDbContext dbContext, CancellationToken cancellationToken)
     {
-        if (IsPostgres())
+        if (IsPostgres(dbContext))
         {
             return await dbContext.PaperEmbeddings
                 .AsNoTracking()
@@ -389,5 +405,11 @@ public sealed class SearchService(
         return value.Trim().ToLowerInvariant().Contains(loweredNeedle);
     }
 
-    private bool IsPostgres() => string.Equals(dbContext.Database.ProviderName, "Npgsql.EntityFrameworkCore.PostgreSQL", StringComparison.Ordinal);
+    private double ComputeKeywordScore(bool matchedInTitle, bool matchedInAbstract, bool matchedInSummary, bool matchedInDocument) =>
+        (matchedInTitle ? _searchWeights.Title : 0.0) +
+        (matchedInAbstract ? _searchWeights.Abstract : 0.0) +
+        (matchedInSummary ? _searchWeights.Summary : 0.0) +
+        (matchedInDocument ? _searchWeights.Document : 0.0);
+
+    private bool IsPostgres(DbContext dbContext) => string.Equals(dbContext.Database.ProviderName, "Npgsql.EntityFrameworkCore.PostgreSQL", StringComparison.Ordinal);
 }

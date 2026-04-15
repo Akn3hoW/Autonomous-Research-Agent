@@ -12,7 +12,7 @@ using System.ComponentModel.DataAnnotations;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/papers")]
+[Route($"{ApiConstants.ApiPrefix}/papers")]
 public sealed class PapersController(
     IPaperService paperService,
     ICitationGraphService citationGraphService) : ControllerBase
@@ -123,12 +123,6 @@ public sealed class PapersController(
         return NoContent();
     }
 
-    private Guid? GetUserId()
-    {
-        var userIdClaim = User.FindFirst("user_id")?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            return null;
-        return userId;
-    }
+    private int? GetUserId() => User.GetUserId();
 }
 

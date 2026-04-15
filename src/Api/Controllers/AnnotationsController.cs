@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1")]
+[Route($"{ApiConstants.ApiPrefix}")]
 public sealed class AnnotationsController(IAnnotationService annotationService) : ControllerBase
 {
     [HttpGet("papers/{paperId:guid}/annotations")]
@@ -18,10 +18,10 @@ public sealed class AnnotationsController(IAnnotationService annotationService) 
         Guid paperId,
         CancellationToken cancellationToken = default)
     {
-        var userIdClaim = User.FindFirst("user_id")?.Value;
-        if (!Guid.TryParse(userIdClaim, out var userId))
+        var userId = User.GetUserId();
+        if (userId is null)
             return Unauthorized();
-        var annotations = await annotationService.ListForPaperAsync(paperId, userId, cancellationToken);
+        var annotations = await annotationService.ListForPaperAsync(paperId, userId.Value, cancellationToken);
         return Ok(annotations.Select(a => new AnnotationResponse(
             a.Id,
             a.PaperId,
@@ -47,13 +47,13 @@ public sealed class AnnotationsController(IAnnotationService annotationService) 
         [FromBody] CreateAnnotationRequest request,
         CancellationToken cancellationToken)
     {
-        var userIdClaim = User.FindFirst("user_id")?.Value;
-        if (!Guid.TryParse(userIdClaim, out var userId))
-            throw new UnauthorizedAccessException("User ID not found in token");
+        var userId = User.GetUserId();
+        if (userId is null)
+            throw new AuthenticationException("User ID not found in token");
 
         var command = new CreateAnnotationCommand(
             paperId,
-            userId,
+            userId.Value,
             request.ChunkId,
             request.Page,
             request.OffsetStart,

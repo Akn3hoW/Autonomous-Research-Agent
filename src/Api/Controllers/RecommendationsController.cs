@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/me")]
+[Route($"{ApiConstants.ApiPrefix}/me")]
 [Authorize(Policy = PolicyNames.ReadAccess)]
 public sealed class RecommendationsController(IRecommendationService recommendationService) : ControllerBase
 {
@@ -22,17 +22,16 @@ public sealed class RecommendationsController(IRecommendationService recommendat
         CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var query = new RecommendationQuery(userId, pageNumber, pageSize);
+        if (userId is null)
+            return Unauthorized();
+
+        var query = new RecommendationQuery(userId.Value, pageNumber, pageSize);
         var result = await recommendationService.GetRecommendationsAsync(query, cancellationToken);
 
         return Ok(result.ToPagedResponse(MapToResponse));
     }
 
-    private int GetUserId()
-    {
-        var userIdClaim = User.FindFirst("user_id")?.Value;
-        return int.Parse(userIdClaim ?? "0");
-    }
+    private int? GetUserId() => User.GetUserId();
 
     private static PaperRecommendationResponse MapToResponse(PaperRecommendationModel model) =>
         new(

@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/collections")]
+[Route($"{ApiConstants.ApiPrefix}/collections")]
 public sealed class CollectionsController(
     ICollectionService collectionService,
     IExportService exportService) : ControllerBase
@@ -172,7 +172,7 @@ public sealed class CollectionsController(
     {
         var userId = GetUserId();
         var token = await collectionService.GenerateShareTokenAsync(id, userId, cancellationToken);
-        var shareUrl = $"/api/v1/collections/shared/{token}";
+        var shareUrl = $"/{ApiConstants.ApiPrefix}/collections/shared/{token}";
         return Ok(new ShareCollectionResponse(token, shareUrl));
     }
 
@@ -187,11 +187,5 @@ public sealed class CollectionsController(
         return NoContent();
     }
 
-    private int GetUserId()
-    {
-        var userIdClaim = User.FindFirst("user_id")?.Value;
-        if (!int.TryParse(userIdClaim, out var userId))
-            throw new UnauthorizedAccessException("User ID not found in token");
-        return userId;
-    }
+    private int? GetUserId() => User.GetUserId();
 }

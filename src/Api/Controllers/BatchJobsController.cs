@@ -14,7 +14,7 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1")]
+[Route($"{ApiConstants.ApiPrefix}")]
 public sealed class BatchJobsController(
     IBatchJobService batchJobService,
     IJobService jobService) : ControllerBase

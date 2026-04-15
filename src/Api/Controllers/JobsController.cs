@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/jobs")]
+[Route($"{ApiConstants.ApiPrefix}/jobs")]
 public sealed class JobsController(IJobService jobService) : ControllerBase
 {
     [HttpGet]

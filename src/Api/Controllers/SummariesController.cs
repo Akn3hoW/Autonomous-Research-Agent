@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1")]
+[Route($"{ApiConstants.ApiPrefix}")]
 public sealed class SummariesController(
     ISummaryService summaryService,
     ISummaryDiffService summaryDiffService,
@@ -140,12 +140,6 @@ public sealed class SummariesController(
         return Ok(result.ToDto());
     }
 
-    private Guid GetUserId()
-    {
-        var userIdClaim = User.FindFirst("user_id")?.Value;
-        if (!Guid.TryParse(userIdClaim, out var userId))
-            throw new UnauthorizedAccessException("User ID not found in token");
-        return userId;
-    }
+    private int? GetUserId() => User.GetUserId();
 }
 

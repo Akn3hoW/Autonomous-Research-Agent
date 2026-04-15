@@ -31,6 +31,7 @@ public sealed class ExceptionHandlingMiddleware(
             InvalidStateException => (StatusCodes.Status400BadRequest, "Invalid request state."),
             ValidationException => (StatusCodes.Status400BadRequest, "Validation failed."),
             ExternalDependencyException => (StatusCodes.Status502BadGateway, "External dependency failure."),
+            AuthenticationException => (StatusCodes.Status401Unauthorized, "Authentication required."),
             _ => (StatusCodes.Status500InternalServerError, "Unexpected server error.")
         };
 
@@ -61,7 +62,7 @@ public sealed class ExceptionHandlingMiddleware(
         {
             Title = title,
             Status = statusCode,
-            Detail = statusCode < 500 ? exception.Message : null,
+            Detail = exception.Message,
             Instance = context.Request.Path
         };
 

@@ -65,7 +65,7 @@ services:
     environment:
       ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=autonomous_research_agent;Username=postgres;Password=${POSTGRES_PASSWORD}"
       LocalEmbedding__BaseUrl: "http://embedding-service:8001"
-      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_ENVIRONMENT: "${ASPNETCORE_ENVIRONMENT:-Production}"
     restart: unless-stopped
     networks:
       - ara-network

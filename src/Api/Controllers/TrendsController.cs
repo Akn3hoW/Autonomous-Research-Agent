@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/trends")]
+[Route($"{ApiConstants.ApiPrefix}/trends")]
 public sealed class TrendsController(ITrendAnalysisService trendAnalysisService) : ControllerBase
 {
     [HttpGet]

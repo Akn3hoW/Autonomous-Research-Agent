@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/notifications")]
+[Route($"{ApiConstants.ApiPrefix}/notifications")]
 public sealed class NotificationsController(INotificationService notificationService) : ControllerBase
 {
     [HttpGet]
@@ -54,9 +54,5 @@ public sealed class NotificationsController(INotificationService notificationSer
         return Ok(new MarkAllReadResponse(count));
     }
 
-    private int GetUserId()
-    {
-        var userIdClaim = User.FindFirst("user_id")?.Value ?? User.FindFirst("sub")?.Value;
-        return int.TryParse(userIdClaim, out var userId) ? userId : 0;
-    }
+    private int? GetUserId() => User.GetUserId();
 }

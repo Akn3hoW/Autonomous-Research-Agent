@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Duplicates;
 using AutonomousResearchAgent.Application.Jobs;
 using AutonomousResearchAgent.Application.Papers;
@@ -16,6 +17,42 @@ using Microsoft.Extensions.Options;
 
 namespace AutonomousResearchAgent.Infrastructure.BackgroundJobs;
 
+/// <summary>
+/// Executes durable background jobs of various types including paper import, summarization, analysis, and research goals.
+/// </summary>
+/// <remarks>
+/// <para>This runner implements the <see cref="IJobRunner"/> interface and processes jobs from the database.
+/// It is typically invoked by <see cref="DatabaseJobWorker"/> or other job scheduling mechanisms.</para>
+/// <para>Supported job types:</para>
+/// <list type="bullet">
+///   <item><description>ImportPapers - Bulk import papers from Semantic Scholar using search queries</description></item>
+///   <item><description>SummarizePaper - Generate AI summaries for a single paper</description></item>
+///   <item><description>ProcessPaperDocument - Download, extract text, and chunk a paper document</description></item>
+///   <item><description>Analysis - Generate cross-paper insights using LLM analysis</description></item>
+///   <item><description>TrendAnalysis - Analyze research trends over time</description></item>
+///   <item><description>ResearchGoal - Orchestrate multi-step research workflows with child jobs</description></item>
+///   <item><description>SearchPapers - Search Semantic Scholar for papers</description></item>
+///   <item><description>ImportPaper - Import a single paper from search results</description></item>
+///   <item><description>SummarizePaperChild - Summarize papers from a parent import job</description></item>
+///   <item><description>AnalyzePaper - Generate paper-level analysis</description></item>
+///   <item><description>GenerateReport - Generate comprehensive research reports</description></item>
+///   <item><description>DuplicateDetection - Detect potential duplicate papers</description></item>
+///   <item><description>WatchlistPolling - Check saved searches for new papers</description></item>
+/// </list>
+/// <para>Error handling:</para>
+/// <list type="bullet">
+///   <item><description>Job failures are logged and persisted to the job's ErrorMessage field</description></item>
+///   <item><description>Partial failures in child job workflows are tracked in ResultJson</description></item>
+///   <item><description>Payload validation errors throw InvalidOperationException with descriptive messages</description></item>
+/// </list>
+/// <para>SLA/Performance characteristics:</para>
+/// <list type="bullet">
+///   <item><description>Small import jobs (5 papers): ~10-30 seconds</description></item>
+///   <item><description>Summarization jobs: ~5-15 seconds per paper (depends on LLM latency)</description></item>
+///   <item><description>Document processing jobs: ~1-5 minutes (includes download, extraction, embedding)</description></item>
+///   <item><description>Research goal workflows: Variable, depends on child job complexity</description></item>
+/// </list>
+/// </remarks>
 public sealed class AutonomousJobRunner(
     ApplicationDbContext dbContext,
     IPaperService paperService,
@@ -29,13 +66,21 @@ public sealed class AutonomousJobRunner(
     OpenRouterChatClient openRouterChatClient,
     ISemanticScholarClient semanticScholarClient,
     IOptions<OpenRouterOptions> options,
+    IOptions<SummaryOptions> summaryOptions,
     ILoggerFactory loggerFactory) : IJobRunner
 {
     private readonly OpenRouterOptions _options = options.Value;
+    private readonly SummaryOptions _summaryOptions = summaryOptions.Value;
     private readonly ILogger<AutonomousJobRunner> _logger = loggerFactory.CreateLogger<AutonomousJobRunner>();
     private readonly ILogger<TrendAnalysisService> _trendAnalysisLogger = loggerFactory.CreateLogger<TrendAnalysisService>();
     private static readonly ActivitySource ActivitySource = new("AutonomousJobRunner");
 
+    /// <summary>
+    /// Executes a job based on its type, handling all supported job categories.
+    /// </summary>
+    /// <param name="job">The job to execute. Must have a valid Type and PayloadJson.</param>
+    /// <param name="cancellationToken">Cancellation token to abort the operation.</param>
+    /// <exception cref="InvalidOperationException">Thrown when payload is malformed or job type is unsupported.</exception>
     public async Task RunAsync(Job job, CancellationToken cancellationToken)
     {
         using var activity = ActivitySource.StartActivity("JobExecution", ActivityKind.Internal);
@@ -101,7 +146,10 @@ public sealed class AutonomousJobRunner(
     private async Task RunImportPapersAsync(Job job, CancellationToken cancellationToken)
     {
         var payload = ParsePayload(job);
-        var queries = payload["queries"]?.AsArray().Select(x => x?.GetValue<string>() ?? string.Empty).Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? [];
+        var queriesArray = payload["queries"]?.AsArray();
+        var queries = queriesArray != null
+            ? queriesArray.Select(x => x?.GetValue<string>() ?? string.Empty).Where(x => !string.IsNullOrWhiteSpace(x)).ToList()
+            : [];
         var limit = payload["limit"]?.GetValue<int>() ?? 10;
         var storeImportedPapers = payload["storeImportedPapers"]?.GetValue<bool>() ?? true;
 
@@ -125,18 +173,25 @@ public sealed class AutonomousJobRunner(
         }))
         {
             var requestedModelName = payload["modelName"]?.GetValue<string>() ?? _options.Model;
-            var promptVersion = payload["promptVersion"]?.GetValue<string>() ?? "v1";
+            var promptVersion = payload["promptVersion"]?.GetValue<string>() ?? _summaryOptions.DefaultPromptVersion;
             var abTestSessionId = payload["abTestSessionId"]?.GetValue<Guid>();
 
             var paper = await paperService.GetByIdAsync(paperId, null, cancellationToken);
             var summary = await summarizationService.GenerateSummaryAsync(paper, requestedModelName, promptVersion, cancellationToken);
 
-            var keyFindings = summary?["keyFindings"]?.AsArray().Select(x => x?.GetValue<string>() ?? string.Empty) ?? [];
+            var keyFindings = summary?["keyFindings"]?.AsArray().Select(x => x?.GetValue<string>()).ToList()
+                ?? throw new InvalidOperationException("Missing required field: keyFindings");
+
+            var shortSummary = summary?["shortSummary"]?.GetValue<string>()
+                ?? throw new InvalidOperationException("Missing required field: shortSummary");
+            var longSummary = summary?["longSummary"]?.GetValue<string>()
+                ?? throw new InvalidOperationException("Missing required field: longSummary");
+
             var searchText = string.Join(" ", new[]
             {
-                summary?["shortSummary"]?.GetValue<string>(),
-                summary?["longSummary"]?.GetValue<string>(),
-                string.Join(" ", keyFindings)
+                shortSummary,
+                longSummary,
+                string.Join(" ", keyFindings.Where(x => !string.IsNullOrWhiteSpace(x)))
             }.Where(x => !string.IsNullOrWhiteSpace(x)));
 
             var created = await summaryService.CreateAsync(
@@ -272,8 +327,18 @@ confidence: number
         dbContext.DocumentChunks.AddRange(chunks);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        await embeddingIndexingService.UpsertDocumentChunksAsync(chunks, cancellationToken);
-        _logger.LogInformation("Created {ChunkCount} chunks and embeddings for document {DocumentId}", chunks.Count, document.Id);
+        try
+        {
+            await embeddingIndexingService.UpsertDocumentChunksAsync(chunks, cancellationToken);
+            _logger.LogInformation("Created {ChunkCount} chunks and embeddings for document {DocumentId}", chunks.Count, document.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Embedding indexing failed for document {DocumentId}. Chunks exist but embeddings are missing. Error: {ErrorMessage}", document.Id, ex.Message);
+            dbContext.DocumentChunks.RemoveRange(chunks);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            throw new InvalidStateException($"Embedding indexing failed for document {document.Id}: {ex.Message}");
+        }
     }
 
     private static string BuildInsightsPrompt(string filter, IReadOnlyCollection<Domain.Entities.Paper> papers)
@@ -351,6 +416,9 @@ confidence: number
         }
         await dbContext.SaveChangesAsync(cancellationToken);
 
+        var parentActivity = Activity.Current?.Context ?? default;
+        var completedChildJobs = new List<Job>();
+
         foreach (var childJob in childJobs)
         {
             using (_logger.BeginScope(new KeyValuePair<string, object?>[]
@@ -359,14 +427,30 @@ confidence: number
                 new("JobType", childJob.Type)
             }))
             {
+                using var childActivity = ActivitySource.StartActivity("JobExecution", ActivityKind.Internal, parentActivity);
+                childActivity?.SetTag("job.id", childJob.Id.ToString());
+                childActivity?.SetTag("job.type", childJob.Type.ToString());
                 try
                 {
                     await RunAsync(childJob, cancellationToken);
+                    completedChildJobs.Add(childJob);
                 }
                 catch (Exception ex)
                 {
+                    childActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
                     childJob.Status = JobStatus.Failed;
                     childJob.ErrorMessage = ex.Message;
+                    await dbContext.SaveChangesAsync(cancellationToken);
+
+                    foreach (var completedChild in completedChildJobs)
+                    {
+                        completedChild.Status = JobStatus.Superseded;
+                        _logger.LogInformation("Marked child job {ChildJobId} as superseded due to sibling failure in parent job {ParentJobId}", completedChild.Id, job.Id);
+                    }
+                    await dbContext.SaveChangesAsync(cancellationToken);
+
+                    job.Status = JobStatus.Failed;
+                    job.ErrorMessage = $"Child job {childJob.Id} failed: {ex.Message}";
                     await dbContext.SaveChangesAsync(cancellationToken);
                     throw;
                 }
@@ -485,10 +569,10 @@ confidence: number
             try
             {
             var paper = await paperService.GetByIdAsync(paperId, null, cancellationToken);
-                var summary = await summarizationService.GenerateSummaryAsync(paper, _options.Model, "v1", cancellationToken);
+                var summary = await summarizationService.GenerateSummaryAsync(paper, _options.Model, _summaryOptions.DefaultPromptVersion, cancellationToken);
 
                 await summaryService.CreateAsync(
-                    new CreateSummaryCommand(paperId, _options.Model, "v1", SummaryStatus.Generated, summary, null),
+                    new CreateSummaryCommand(paperId, _options.Model, _summaryOptions.DefaultPromptVersion, SummaryStatus.Generated, summary, null),
                     cancellationToken);
 
                 summaryResults.Add(new JsonObject

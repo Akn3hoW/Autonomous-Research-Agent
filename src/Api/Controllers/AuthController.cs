@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/auth")]
+[Route($"{ApiConstants.ApiPrefix}/auth")]
 public sealed class AuthController(IAuthService authService) : ControllerBase
 {
     [HttpPost("login")]

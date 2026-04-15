@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/papers/{paperId:guid}/documents")]
+[Route($"{ApiConstants.ApiPrefix}/papers/{{paperId:guid}}/documents")]
 public sealed class PaperDocumentsController(IPaperDocumentService paperDocumentService) : ControllerBase
 {
     [HttpGet]

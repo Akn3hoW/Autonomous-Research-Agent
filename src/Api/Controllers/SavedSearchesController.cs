@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/saved-searches")]
+[Route($"{ApiConstants.ApiPrefix}/saved-searches")]
 public sealed class SavedSearchesController(ISavedSearchService savedSearchService) : ControllerBase
 {
     [HttpGet]
@@ -81,9 +81,5 @@ public sealed class SavedSearchesController(ISavedSearchService savedSearchServi
         return Ok(result.ToDto());
     }
 
-    private int GetUserId()
-    {
-        var userIdClaim = User.FindFirst("user_id")?.Value ?? User.FindFirst("sub")?.Value;
-        return int.TryParse(userIdClaim, out var userId) ? userId : 0;
-    }
+    private int? GetUserId() => User.GetUserId();
 }

@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using AutonomousResearchAgent.Application.Auth;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -15,9 +16,10 @@ public interface ITokenService
     ClaimsPrincipal? ValidateToken(string token);
 }
 
-public sealed class TokenService(IOptions<JwtOptions> jwtOptions) : ITokenService
+public sealed class TokenService(IOptions<JwtOptions> jwtOptions, ILogger<TokenService> logger) : ITokenService
 {
     private readonly JwtOptions _jwtOptions = jwtOptions.Value;
+    private readonly ILogger<TokenService> _logger = logger;
 
     public (string Token, DateTimeOffset ExpiresAt) GenerateAccessToken(Guid userId, string email, IEnumerable<string> roles)
     {
@@ -72,8 +74,24 @@ public sealed class TokenService(IOptions<JwtOptions> jwtOptions) : ITokenServic
 
             return principal;
         }
-        catch
+        catch (SecurityTokenInvalidSignatureException)
         {
+            _logger.LogWarning("Token validation failed: invalid signature");
+            return null;
+        }
+        catch (SecurityTokenExpiredException ex)
+        {
+            _logger.LogDebug("Token validation failed: token expired at {Expiration}", ex.Expires);
+            return null;
+        }
+        catch (SecurityTokenValidationException ex)
+        {
+            _logger.LogWarning("Token validation failed: {Message}", ex.Message);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during token validation");
             return null;
         }
     }

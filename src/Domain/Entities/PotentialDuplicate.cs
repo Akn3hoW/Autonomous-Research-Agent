@@ -10,7 +10,7 @@ public sealed class PotentialDuplicate : AuditableEntity
     public double SimilarityScore { get; set; }
     public DuplicateReviewStatus Status { get; set; } = DuplicateReviewStatus.Pending;
     public int? ReviewedByUserId { get; set; }
-    public DateTime? ReviewedAt { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
     public string? Notes { get; set; }
 
     [ForeignKey(nameof(PaperAId))]

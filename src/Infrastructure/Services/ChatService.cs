@@ -19,6 +19,7 @@ namespace AutonomousResearchAgent.Infrastructure.Services;
 public sealed class ChatService(
     ApplicationDbContext dbContext,
     IEmbeddingService embeddingService,
+    IHttpClientFactory httpClientFactory,
     IOptions<OpenRouterOptions> options,
     ILogger<ChatService> logger) : IChatService
 {
@@ -51,14 +52,8 @@ Format your response with proper paragraphs and structure.";
             throw new InvalidOperationException("OpenRouter API key is not configured.");
         }
 
-        using var httpClient = new HttpClient { BaseAddress = new Uri(_options.BaseUrl.TrimEnd('/') + "/") };
+        using var httpClient = httpClientFactory.CreateClient("OpenRouter");
         httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
-        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _options.ApiKey);
-        httpClient.DefaultRequestHeaders.Add("X-Title", _options.AppTitle);
-        if (!string.IsNullOrWhiteSpace(_options.HttpReferer))
-        {
-            httpClient.DefaultRequestHeaders.Referrer = new Uri(_options.HttpReferer);
-        }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
@@ -148,10 +143,11 @@ Format your response with proper paragraphs and structure.";
             WHERE pe.""Vector"" IS NOT NULL
               AND pe.""EmbeddingType"" = 'DocumentChunk'
             ORDER BY pe.""Vector"" <-> @query_embedding
-            LIMIT {topK}";
+            LIMIT @topK";
 
         var embeddingParam = new NpgsqlParameter("query_embedding", new Vector(queryEmbedding));
         command.Parameters.Add(embeddingParam);
+        command.Parameters.Add(new NpgsqlParameter("topK", topK));
 
         await dbContext.Database.OpenConnectionAsync(cancellationToken);
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -230,14 +226,8 @@ Provide your answer below. Start with a brief summary if the question requires i
             yield break;
         }
 
-        using var httpClient = new HttpClient { BaseAddress = new Uri(_options.BaseUrl.TrimEnd('/') + "/") };
+        using var httpClient = httpClientFactory.CreateClient("OpenRouter");
         httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
-        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _options.ApiKey);
-        httpClient.DefaultRequestHeaders.Add("X-Title", _options.AppTitle);
-        if (!string.IsNullOrWhiteSpace(_options.HttpReferer))
-        {
-            httpClient.DefaultRequestHeaders.Referrer = new Uri(_options.HttpReferer);
-        }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {

@@ -25,9 +25,16 @@ public sealed class AuthService(
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Email == command.Email && u.IsActive, cancellationToken);
 
-        if (user is null || !VerifyPassword(command.Password, user.PasswordHash))
+        if (user is null)
         {
-            throw new UnauthorizedAccessException("Invalid email or password.");
+            logger.LogWarning("Login failed: user {Email} not found", command.Email);
+            throw new AuthenticationException("Invalid email or password.");
+        }
+
+        if (!VerifyPassword(command.Password, user.PasswordHash))
+        {
+            logger.LogWarning("Login failed: invalid password for user {UserId} ({Email})", user.Id, command.Email);
+            throw new AuthenticationException("Invalid email or password.");
         }
 
         var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
@@ -49,11 +56,13 @@ public sealed class AuthService(
     {
         if (await dbContext.Users.AnyAsync(u => u.Email == command.Email, cancellationToken))
         {
+            logger.LogWarning("Registration failed: email {Email} already exists", command.Email);
             throw new ConflictException($"User with email '{command.Email}' already exists.");
         }
 
         if (await dbContext.Users.AnyAsync(u => u.Username == command.Username, cancellationToken))
         {
+            logger.LogWarning("Registration failed: username {Username} already exists", command.Username);
             throw new ConflictException($"User with username '{command.Username}' already exists.");
         }
 
@@ -98,13 +107,13 @@ public sealed class AuthService(
         var principal = tokenService.ValidateToken(command.RefreshToken);
         if (principal == null)
         {
-            throw new UnauthorizedAccessException("Invalid or expired refresh token.");
+            throw new AuthenticationException("Invalid or expired refresh token.");
         }
 
         var userIdClaim = principal.FindFirst(JwtRegisteredClaimNames.Sub) ?? principal.FindFirst(ClaimTypes.NameIdentifier);
         if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
         {
-            throw new UnauthorizedAccessException("Invalid refresh token claims.");
+            throw new AuthenticationException("Invalid refresh token claims.");
         }
 
         var user = await dbContext.Users
@@ -114,7 +123,7 @@ public sealed class AuthService(
 
         if (user == null)
         {
-            throw new UnauthorizedAccessException("User not found or inactive.");
+            throw new AuthenticationException("User not found or inactive.");
         }
 
         var storedTokenHash = await dbContext.RefreshTokens
@@ -122,7 +131,7 @@ public sealed class AuthService(
 
         if (storedTokenHash == null || !VerifyRefreshToken(command.RefreshToken, storedTokenHash.TokenHash))
         {
-            throw new UnauthorizedAccessException("Refresh token has been revoked or expired.");
+            throw new AuthenticationException("Refresh token has been revoked or expired.");
         }
 
         dbContext.RefreshTokens.Remove(storedTokenHash);

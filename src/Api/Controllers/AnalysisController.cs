@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/analysis")]
+[Route($"{ApiConstants.ApiPrefix}/analysis")]
 public sealed class AnalysisController(IAnalysisService analysisService) : ControllerBase
 {
     [HttpPost("compare-papers")]

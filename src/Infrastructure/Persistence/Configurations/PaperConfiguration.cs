@@ -41,6 +41,16 @@ public sealed class PaperConfiguration : IEntityTypeConfiguration<Paper>
             .WithOne(x => x.Paper)
             .HasForeignKey(x => x.PaperId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(x => x.Documents)
+            .WithOne(x => x.Paper)
+            .HasForeignKey(x => x.PaperId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(x => x.Concepts)
+            .WithOne(x => x.Paper)
+            .HasForeignKey(x => x.PaperId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
 

@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/concepts")]
+[Route($"{ApiConstants.ApiPrefix}/concepts")]
 public sealed class ConceptsController(IConceptService conceptService) : ControllerBase
 {
     [HttpGet]

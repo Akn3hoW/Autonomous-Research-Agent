@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/papers")]
+[Route($"{ApiConstants.ApiPrefix}/papers")]
 public sealed class ClusterMapController(IClusteringService clusteringService) : ControllerBase
 {
     [HttpGet("cluster-map")]

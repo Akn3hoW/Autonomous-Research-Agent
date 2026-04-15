@@ -32,9 +32,11 @@ public static class ServiceCollectionExtensions
         services.AddJwtAuthentication(configuration);
         services.AddAuthorizationPolicies();
         services.AddApiValidators();
+        services.Configure<RateLimitOptions>(configuration.GetSection(RateLimitOptions.SectionName));
         services.AddStartupFilter<JwtSigningKeyValidator>();
+        services.AddStartupFilter<PostgresPasswordValidator>();
         services.AddStartupFilter<DatabaseHealthCheck>();
-        services.AddRateLimitingPolicies();
+        services.AddRateLimitingPolicies(configuration);
 
         return services;
     }
@@ -145,43 +147,48 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddRateLimitingPolicies(this IServiceCollection services)
+    public static IServiceCollection AddRateLimitingPolicies(this IServiceCollection services, IConfiguration configuration)
     {
+        services.Configure<RateLimitOptions>(configuration.GetSection(RateLimitOptions.SectionName));
+        var rateLimitOptions = configuration.GetSection(RateLimitOptions.SectionName).Get<RateLimitOptions>() ?? new RateLimitOptions();
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
             options.AddPolicy(RateLimiterPolicyNames.Expensive, context =>
                 RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+                    partitionKey: GetPartitionKey(context),
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
-                        PermitLimit = 10,
-                        Window = TimeSpan.FromMinutes(1),
+                        PermitLimit = rateLimitOptions.ExpensivePermitLimit,
+                        Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds),
                         QueueLimit = 0
                     }));
 
             options.AddPolicy(RateLimiterPolicyNames.JobCreation, context =>
                 RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+                    partitionKey: GetPartitionKey(context),
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
-                        PermitLimit = 20,
-                        Window = TimeSpan.FromMinutes(1),
+                        PermitLimit = rateLimitOptions.JobCreationPermitLimit,
+                        Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds),
                         QueueLimit = 0
                     }));
 
             options.AddPolicy(RateLimiterPolicyNames.Standard, context =>
                 RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+                    partitionKey: GetPartitionKey(context),
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
-                        PermitLimit = 100,
-                        Window = TimeSpan.FromMinutes(1),
+                        PermitLimit = rateLimitOptions.StandardPermitLimit,
+                        Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds),
                         QueueLimit = 0
                     }));
         });
 
         return services;
     }
+
+    private static string GetPartitionKey(HttpContext context) =>
+        context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
 }

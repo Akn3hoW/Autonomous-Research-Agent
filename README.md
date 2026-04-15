@@ -137,10 +137,54 @@ src/
 ### Prerequisites
 
 - .NET 9 SDK
-- PostgreSQL 15+
-- pgvector extension enabled in the target database
+- PostgreSQL 15+ with pgvector extension
 - `ocrmypdf` available on the machine for PDF OCR fallback
 - Python 3.11+ for the local embedding service
+
+### Local database setup
+
+1. **Install PostgreSQL 15+** and **pgvector extension**:
+
+   ```bash
+   # On Ubuntu/Debian
+   sudo apt install postgresql postgresql-contrib
+   sudo apt install postgresql-15-pgvector  # or postgresql-16-pgvector
+
+   # On macOS with Homebrew
+   brew install postgresql@15
+   brew install pgvector
+
+   # Verify pgvector is available
+   psql -c "CREATE EXTENSION IF NOT EXISTS vector;"
+   ```
+
+2. **Create the development database**:
+
+   ```bash
+   sudo -u postgres psql -c "CREATE DATABASE autonomous_research_agent;"
+   sudo -u postgres psql -c "CREATE USER ara_user WITH PASSWORD 'ara_password';"
+   sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE autonomous_research_agent TO ara_user;"
+   sudo -u postgres psql -d autonomous_research_agent -c "CREATE EXTENSION IF NOT EXISTS vector;"
+   sudo -u postgres psql -d autonomous_research_agent -c "GRANT ALL ON SCHEMA public TO ara_user;"
+   ```
+
+3. **Update connection string in `src/Api/appsettings.json`**:
+
+   ```json
+   {
+     "ConnectionStrings": {
+       "Postgres": "Host=localhost;Database=autonomous_research_agent;Username=ara_user;Password=ara_password"
+     }
+   }
+   ```
+
+4. **Apply migrations**:
+
+   ```bash
+   dotnet ef database update \
+     --project src/Infrastructure \
+     --startup-project src/Api
+   ```
 
 ### Restore and run
 
@@ -225,6 +269,73 @@ Summaries stay on OpenRouter. Embeddings are served locally through `scripts/loc
 - Enrich JSONB result schemas with typed helper models in `Application`
 - Add new analysis types without breaking existing endpoints
 - Introduce scheduled or multi-step analysis pipelines through the job model
+
+## Test Setup
+
+### Prerequisites
+
+- .NET 9 SDK
+- PostgreSQL 15+ with pgvector extension (for integration tests)
+- Docker (optional, for containerized test database)
+
+### Run unit and integration tests
+
+```bash
+# Run all tests
+dotnet test
+
+# Run with coverage
+dotnet test --collect:"XPlat Code Coverage"
+
+# Run specific test project
+dotnet test tests/Infrastructure.Tests/
+```
+
+### Test database setup
+
+Integration tests require a PostgreSQL database with pgvector extension:
+
+```bash
+# Using Docker (recommended)
+docker run -d \
+  --name ara-test-db \
+  -e POSTGRES_DB=ara_test \
+  -e POSTGRES_USER=ara_user \
+  -e POSTGRES_PASSWORD=ara_password \
+  -p 5432:5432 \
+  -v pgvector_data:/var/lib/postgresql/data \
+  postgres:15-alpine
+
+# Create pgvector extension
+docker exec ara-test-db psql -U ara_user -d ara_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+```
+
+### Test configuration
+
+Tests use `appsettings.Testing.json` in the test projects. Default connection assumes Docker test database:
+
+```json
+{
+  "ConnectionStrings": {
+    "Postgres": "Host=localhost;Database=ara_test;Username=ara_user;Password=ara_password"
+  }
+}
+```
+
+### Writing tests
+
+- Unit tests: Mock external dependencies (HttpClient, embedding service)
+- Integration tests: Use `TestDatabaseFixture` for database setup/teardown
+- Job runner tests: Use `AutonomousJobRunnerTests` as a reference pattern
+
+### Key test files
+
+| File | Purpose |
+|------|---------|
+| `tests/Infrastructure.Tests/AutonomousJobRunnerTests.cs` | Job execution logic |
+| `tests/Infrastructure.Tests/PaperDocumentProcessingServiceTests.cs` | Document processing |
+| `tests/Infrastructure.Tests/EmbeddingIndexingServiceTests.cs` | Embedding service |
+| `tests/Infrastructure.Tests/PaperAndSummaryEmbeddingIntegrationTests.cs` | Full embedding pipeline |
 
 ## Notes
 

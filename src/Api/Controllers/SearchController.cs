@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/search")]
+[Route($"{ApiConstants.ApiPrefix}/search")]
 public sealed class SearchController(ISearchService searchService) : ControllerBase
 {
     [HttpGet]

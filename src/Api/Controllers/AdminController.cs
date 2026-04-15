@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/admin")]
+[Route($"{ApiConstants.ApiPrefix}/admin")]
 public sealed class AdminController(
     IAuditService auditService,
     IAnalyticsService analyticsService) : ControllerBase

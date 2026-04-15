@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/me")]
+[Route($"{ApiConstants.ApiPrefix}/me")]
 [Authorize(Policy = PolicyNames.ReadAccess)]
 public sealed class ReadingSessionsController(IReadingSessionService readingSessionService) : ControllerBase
 {
@@ -102,13 +102,7 @@ public sealed class ReadingSessionsController(IReadingSessionService readingSess
         return NoContent();
     }
 
-    private int GetUserId()
-    {
-        var userIdClaim = User.FindFirst("user_id")?.Value;
-        if (!int.TryParse(userIdClaim, out var userId))
-            throw new UnauthorizedAccessException("User ID not found in token");
-        return userId;
-    }
+    private int? GetUserId() => User.GetUserId();
 
     private static ReadingSessionResponse MapToResponse(ReadingSessionModel model) =>
         new(

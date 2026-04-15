@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/chat")]
+[Route($"{ApiConstants.ApiPrefix}/chat")]
 public sealed class ChatController(IChatService chatService, ILogger<ChatController> logger) : ControllerBase
 {
     [HttpPost]

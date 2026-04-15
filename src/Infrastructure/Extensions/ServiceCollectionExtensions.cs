@@ -49,8 +49,13 @@ public static class ServiceCollectionExtensions
         services.Configure<BackgroundJobOptions>(configuration.GetSection(BackgroundJobOptions.SectionName));
         services.Configure<DocumentProcessingOptions>(configuration.GetSection(DocumentProcessingOptions.SectionName));
         services.Configure<LocalEmbeddingOptions>(configuration.GetSection(LocalEmbeddingOptions.SectionName));
+        services.Configure<SearchWeightsOptions>(configuration.GetSection(SearchWeightsOptions.SectionName));
+        services.Configure<SummaryOptions>(configuration.GetSection(SummaryOptions.SectionName));
 
         services.AddDbContext<ApplicationDbContext>(options =>
+            options.UseNpgsql(connectionString, npgsqlOptions => npgsqlOptions.UseVector()));
+
+        services.AddDbContextFactory<ApplicationDbContext>(options =>
             options.UseNpgsql(connectionString, npgsqlOptions => npgsqlOptions.UseVector()));
 
         services.AddScoped<IPaperService, PaperService>();
@@ -71,6 +76,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICitationGraphService, CitationGraphService>();
         services.AddScoped<IResearchGoalService, ResearchGoalService>();
         services.AddScoped<IDuplicateDetectionService, DuplicateDetectionService>();
+        services.Configure<DuplicateDetectionOptions>(configuration.GetSection(DuplicateDetectionOptions.SectionName));
         services.AddScoped<ICollectionService, CollectionService>();
         services.AddScoped<ILiteratureReviewService, LiteratureReviewService>();
         services.AddScoped<ISavedSearchService, SavedSearchService>();
@@ -104,9 +110,10 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ILocalEmbeddingClient>(serviceProvider => serviceProvider.GetRequiredService<LocalEmbeddingHttpClient>());
         services.AddTransient<IEmbeddingService>(serviceProvider => serviceProvider.GetRequiredService<LocalEmbeddingHttpClient>());
 
+        var documentProcessingOptions = configuration.GetSection(DocumentProcessingOptions.SectionName).Get<DocumentProcessingOptions>() ?? new DocumentProcessingOptions();
         services.AddHttpClient("PaperDocuments", client =>
         {
-            client.Timeout = TimeSpan.FromMinutes(5);
+            client.Timeout = TimeSpan.FromSeconds(documentProcessingOptions.DownloadTimeoutSeconds);
         });
 
         services.AddHttpClient("Webhooks");

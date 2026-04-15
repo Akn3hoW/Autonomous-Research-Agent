@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/me/webhooks")]
+[Route($"{ApiConstants.ApiPrefix}/me/webhooks")]
 public sealed class WebhooksController(IWebhookService webhookService) : ControllerBase
 {
     private static readonly HashSet<string> ValidEvents = ["job_completed", "saved_search_hit", "hypothesis_updated"];
@@ -87,11 +87,7 @@ public sealed class WebhooksController(IWebhookService webhookService) : Control
         return NoContent();
     }
 
-    private int GetUserId()
-    {
-        var userIdClaim = User.FindFirst("user_id")?.Value ?? User.FindFirst("sub")?.Value;
-        return int.TryParse(userIdClaim, out var userId) ? userId : 0;
-    }
+    private int? GetUserId() => User.GetUserId();
 }
 
 public sealed record WebhookResponse(

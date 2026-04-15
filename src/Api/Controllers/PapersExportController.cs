@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/papers")]
+[Route($"{ApiConstants.ApiPrefix}/papers")]
 public sealed class PapersExportController(
     IPaperService paperService,
     IExportService exportService) : ControllerBase

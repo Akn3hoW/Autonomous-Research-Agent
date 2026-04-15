@@ -12,7 +12,7 @@ public sealed record DuplicatePairModel(
     double SimilarityScore,
     DuplicateReviewStatus Status,
     int? ReviewedByUserId,
-    DateTime? ReviewedAt,
+    DateTimeOffset? ReviewedAt,
     string? Notes,
     DateTimeOffset CreatedAt);
 

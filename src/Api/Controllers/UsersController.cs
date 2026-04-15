@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/users")]
+[Route($"{ApiConstants.ApiPrefix}/users")]
 public sealed class UsersController(IUserService userService) : ControllerBase
 {
     [HttpGet]

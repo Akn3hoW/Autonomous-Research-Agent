@@ -13,14 +13,11 @@ using Microsoft.Extensions.Options;
 
 namespace AutonomousResearchAgent.Infrastructure.Services;
 
-#pragma warning disable CS9113 // Parameter unused by design (embedding index placeholder)
 public sealed class OpenRouterSummarizationService(
     ApplicationDbContext dbContext,
     OpenRouterChatClient openRouterChatClient,
     IOptions<OpenRouterOptions> options,
-    IEmbeddingIndexingService embeddingIndexingService,
     ILogger<OpenRouterSummarizationService> logger) : ISummarizationService
-#pragma warning restore CS9113
 {
     private readonly OpenRouterOptions _options = options.Value;
 

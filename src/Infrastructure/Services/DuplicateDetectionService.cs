@@ -6,14 +6,17 @@ using AutonomousResearchAgent.Domain.Enums;
 using AutonomousResearchAgent.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AutonomousResearchAgent.Infrastructure.Services;
 
 public sealed class DuplicateDetectionService(
     ApplicationDbContext dbContext,
+    IOptions<DuplicateDetectionOptions> options,
     ILogger<DuplicateDetectionService> logger) : IDuplicateDetectionService
 {
     private const int BatchSize = 100;
+    private DuplicateDetectionOptions Options => options.Value;
 
     public async Task<Guid> StartDuplicateDetectionJobAsync(double threshold = 0.95, CancellationToken cancellationToken = default)
     {
@@ -103,7 +106,7 @@ public sealed class DuplicateDetectionService(
 
         duplicate.Status = isDuplicate ? DuplicateReviewStatus.ConfirmedDuplicate : DuplicateReviewStatus.ConfirmedNotDuplicate;
         duplicate.ReviewedByUserId = reviewedByUserId;
-        duplicate.ReviewedAt = DateTime.UtcNow;
+        duplicate.ReviewedAt = DateTimeOffset.UtcNow;
         duplicate.Notes = notes;
 
         if (isDuplicate && mergedIntoPaperId.HasValue)
@@ -127,7 +130,7 @@ public sealed class DuplicateDetectionService(
         {
             duplicate.Status = DuplicateReviewStatus.Merged;
             duplicate.ReviewedByUserId = reviewedByUserId;
-            duplicate.ReviewedAt = DateTime.UtcNow;
+            duplicate.ReviewedAt = DateTimeOffset.UtcNow;
             duplicate.Notes = notes;
         }
 
@@ -203,7 +206,7 @@ public sealed class DuplicateDetectionService(
                 SimilarityScore = 1.0,
                 Status = DuplicateReviewStatus.Merged,
                 ReviewedByUserId = reviewedByUserId,
-                ReviewedAt = DateTime.UtcNow,
+                ReviewedAt = DateTimeOffset.UtcNow,
                 Notes = notes
             };
             dbContext.PotentialDuplicates.Add(newDuplicate);
@@ -217,8 +220,8 @@ public sealed class DuplicateDetectionService(
     {
         logger.LogInformation("Starting duplicate detection with threshold {Threshold}", threshold);
 
-        const int topK = 50;
-        const int maxComparisonsPerBatch = 10000;
+        var topK = Options.TopK;
+        var maxComparisonsPerBatch = Options.MaxComparisonsPerBatch;
 
         var allEmbeddings = await dbContext.PaperEmbeddings
             .AsNoTracking()

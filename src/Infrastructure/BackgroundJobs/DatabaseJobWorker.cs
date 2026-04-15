@@ -114,9 +114,20 @@ WHERE ""Id"" = (
             return null;
         }
 
+        var updatedRows = await dbContext.Jobs
+            .Where(j => j.Id == fallbackJob.Id && j.Status == JobStatus.Queued)
+            .ExecuteUpdateAsync(j => j
+                .SetProperty(p => p.Status, JobStatus.Running)
+                .SetProperty(p => p.ErrorMessage, (string?)null),
+                cancellationToken);
+
+        if (updatedRows == 0)
+        {
+            return null;
+        }
+
         fallbackJob.Status = JobStatus.Running;
         fallbackJob.ErrorMessage = null;
-        await dbContext.SaveChangesAsync(cancellationToken);
         return fallbackJob;
     }
 
