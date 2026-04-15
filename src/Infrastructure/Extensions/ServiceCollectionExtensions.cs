@@ -1,3 +1,4 @@
+using AutonomousResearchAgent.Application.Admin;
 using AutonomousResearchAgent.Application.Analysis;
 using AutonomousResearchAgent.Application.Auth;
 using AutonomousResearchAgent.Application.Citations;
@@ -74,6 +75,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ILiteratureReviewService, LiteratureReviewService>();
         services.AddScoped<ISavedSearchService, SavedSearchService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IAnalyticsService, AnalyticsService>();
         services.AddSingleton<ITokenService, TokenService>();
         services.AddHostedService<DatabaseJobWorker>();
 

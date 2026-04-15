@@ -2,6 +2,7 @@ using System.Text.Json;
 using AutonomousResearchAgent.Api.Authorization;
 using AutonomousResearchAgent.Api.Contracts.Admin;
 using AutonomousResearchAgent.Api.Extensions;
+using AutonomousResearchAgent.Application.Admin;
 using AutonomousResearchAgent.Application.Audit;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +11,9 @@ namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/admin")]
-public sealed class AdminController(IAuditService auditService) : ControllerBase
+public sealed class AdminController(
+    IAuditService auditService,
+    IAnalyticsService analyticsService) : ControllerBase
 {
     [HttpGet("audit-log")]
     [Authorize(Policy = PolicyNames.AdminAccess)]
@@ -39,6 +42,15 @@ public sealed class AdminController(IAuditService auditService) : ControllerBase
             e.Timestamp)).ToList();
 
         return Ok(new AuditLogResponse(items, result.PageNumber, result.PageSize, result.TotalCount));
+    }
+
+    [HttpGet("analytics")]
+    [Authorize(Policy = PolicyNames.AdminAccess)]
+    [ProducesResponseType(typeof(AnalyticsDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<AnalyticsDto>> GetAnalytics(CancellationToken cancellationToken)
+    {
+        var analytics = await analyticsService.GetAnalyticsAsync(cancellationToken);
+        return Ok(analytics);
     }
 
     private static object? TryParseJson(string json)

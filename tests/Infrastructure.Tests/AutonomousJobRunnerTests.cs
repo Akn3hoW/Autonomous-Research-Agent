@@ -129,7 +129,7 @@ public sealed class AutonomousJobRunnerTests
         var paperId = Guid.NewGuid();
         var papers = new List<PaperDetail>
         {
-            new(paperId, null, null, "Test Paper", null, Array.Empty<string>(), null, null, 0, PaperSource.SemanticScholar, PaperStatus.Imported, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)
+            new(paperId, null, null, "Test Paper", null, Array.Empty<string>(), null, null, 0, PaperSource.SemanticScholar, PaperStatus.Imported, null, Array.Empty<string>(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)
         };
 
         _paperServiceMock
@@ -155,11 +155,11 @@ public sealed class AutonomousJobRunnerTests
             Type = JobType.SummarizePaper,
             PayloadJson = JsonSerializer.Serialize(new { paperId = paperId, modelName = "test-model", promptVersion = "v1" })
         };
-        var paper = new PaperDetail(paperId, null, null, "Test Paper", null, Array.Empty<string>(), null, null, 0, PaperSource.SemanticScholar, PaperStatus.Imported, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+        var paper = new PaperDetail(paperId, null, null, "Test Paper", null, Array.Empty<string>(), null, null, 0, PaperSource.SemanticScholar, PaperStatus.Imported, null, Array.Empty<string>(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
         var summaryId = Guid.NewGuid();
 
         _paperServiceMock
-            .Setup(s => s.GetByIdAsync(paperId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetByIdAsync(paperId, It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(paper);
 
         _summarizationServiceMock
@@ -172,7 +172,7 @@ public sealed class AutonomousJobRunnerTests
 
         await runner.RunAsync(job, CancellationToken.None);
 
-        _paperServiceMock.Verify(s => s.GetByIdAsync(paperId, It.IsAny<CancellationToken>()), Times.Once);
+        _paperServiceMock.Verify(s => s.GetByIdAsync(paperId, It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Once);
         _summarizationServiceMock.Verify(s => s.GenerateSummaryAsync(paper, "test-model", "v1", It.IsAny<CancellationToken>()), Times.Once);
         _summaryServiceMock.Verify(s => s.CreateAsync(It.IsAny<CreateSummaryCommand>(), It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -190,10 +190,10 @@ public sealed class AutonomousJobRunnerTests
             Type = JobType.SummarizePaper,
             PayloadJson = JsonSerializer.Serialize(new { paperId = paperId })
         };
-        var paper = new PaperDetail(paperId, null, null, "Test Paper", null, Array.Empty<string>(), null, null, 0, PaperSource.SemanticScholar, PaperStatus.Imported, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+        var paper = new PaperDetail(paperId, null, null, "Test Paper", null, Array.Empty<string>(), null, null, 0, PaperSource.SemanticScholar, PaperStatus.Imported, null, Array.Empty<string>(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
 
         _paperServiceMock
-            .Setup(s => s.GetByIdAsync(paperId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetByIdAsync(paperId, It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(paper);
 
         _summarizationServiceMock
@@ -418,10 +418,10 @@ public sealed class AutonomousJobRunnerTests
             Type = JobType.SummarizePaper,
             PayloadJson = JsonSerializer.Serialize(new { paperId = paperId })
         };
-        var paper = new PaperDetail(paperId, null, null, "Test Paper", null, Array.Empty<string>(), null, null, 0, PaperSource.SemanticScholar, PaperStatus.Imported, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+        var paper = new PaperDetail(paperId, null, null, "Test Paper", null, Array.Empty<string>(), null, null, 0, PaperSource.SemanticScholar, PaperStatus.Imported, null, Array.Empty<string>(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
 
         _paperServiceMock
-            .Setup(s => s.GetByIdAsync(paperId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetByIdAsync(paperId, It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(paper);
 
         _summarizationServiceMock

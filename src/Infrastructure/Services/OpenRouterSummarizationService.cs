@@ -1,6 +1,9 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Papers;
 using AutonomousResearchAgent.Application.Summaries;
+using AutonomousResearchAgent.Domain.Entities;
 using AutonomousResearchAgent.Domain.Enums;
 using AutonomousResearchAgent.Infrastructure.External.OpenRouter;
 using AutonomousResearchAgent.Infrastructure.Persistence;
@@ -10,11 +13,14 @@ using Microsoft.Extensions.Options;
 
 namespace AutonomousResearchAgent.Infrastructure.Services;
 
+#pragma warning disable CS9113 // Parameter unused by design (embedding index placeholder)
 public sealed class OpenRouterSummarizationService(
     ApplicationDbContext dbContext,
     OpenRouterChatClient openRouterChatClient,
     IOptions<OpenRouterOptions> options,
+    IEmbeddingIndexingService embeddingIndexingService,
     ILogger<OpenRouterSummarizationService> logger) : ISummarizationService
+#pragma warning restore CS9113
 {
     private readonly OpenRouterOptions _options = options.Value;
 
@@ -71,4 +77,172 @@ Source text:
         return await openRouterChatClient.CreateJsonCompletionAsync(systemPrompt, userPrompt, cancellationToken);
     }
 
+    public async Task<AbTestSessionModel> CreateAbTestSessionAsync(CreateAbTestRequest request, Guid userId, CancellationToken cancellationToken)
+    {
+        var paper = await dbContext.Papers.AsNoTracking().FirstOrDefaultAsync(p => p.Id == request.PaperId, cancellationToken)
+            ?? throw new NotFoundException(nameof(Paper), request.PaperId);
+
+        var session = new AbTestSession
+        {
+            Name = request.Name,
+            PaperId = request.PaperId,
+            UserId = userId,
+            Status = AbTestSessionStatus.Running
+        };
+
+        dbContext.AbTestSessions.Add(session);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var childJobs = new List<Job>();
+        foreach (var modelName in request.ModelNames)
+        {
+            var payload = new JsonObject
+            {
+                ["paperId"] = session.PaperId,
+                ["modelName"] = modelName,
+                ["promptVersion"] = "v1",
+                ["abTestSessionId"] = session.Id
+            };
+
+            var job = new Job
+            {
+                Type = JobType.SummarizePaper,
+                Status = JobStatus.Queued,
+                PayloadJson = JsonSerializer.Serialize(payload),
+                TargetEntityId = session.PaperId,
+                ParentJobId = null
+            };
+
+            dbContext.Jobs.Add(job);
+            childJobs.Add(job);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var results = childJobs.Select(j => new SummaryResultModel(
+            Guid.Empty,
+            j.PayloadJson.Contains("modelName") ? JsonNode.Parse(j.PayloadJson)?.AsObject()?["modelName"]?.GetValue<string>() ?? "" : "",
+            null,
+            "Pending",
+            DateTimeOffset.UtcNow,
+            false
+        )).ToArray();
+
+        return new AbTestSessionModel(
+            session.Id,
+            session.Name,
+            session.PaperId,
+            paper.Title,
+            session.Status.ToString(),
+            session.CreatedAt,
+            session.CompletedAt,
+            results);
+    }
+
+    public async Task<AbTestSessionModel?> GetAbTestSessionAsync(Guid sessionId, CancellationToken cancellationToken)
+    {
+        var session = await dbContext.AbTestSessions
+            .AsNoTracking()
+            .Include(s => s.Paper)
+            .Include(s => s.PaperSummaries)
+            .FirstOrDefaultAsync(s => s.Id == sessionId, cancellationToken);
+
+        if (session == null)
+        {
+            return null;
+        }
+
+        var results = session.PaperSummaries.Select(s => new SummaryResultModel(
+            s.Id,
+            s.ModelName,
+            s.SummaryJson,
+            s.Status.ToString(),
+            s.CreatedAt,
+            s.IsSelected
+        )).ToArray();
+
+        return new AbTestSessionModel(
+            session.Id,
+            session.Name,
+            session.PaperId,
+            session.Paper?.Title ?? string.Empty,
+            session.Status.ToString(),
+            session.CreatedAt,
+            session.CompletedAt,
+            results);
+    }
+
+    public async Task<IReadOnlyCollection<AbTestSessionModel>> GetAbTestSessionsForPaperAsync(Guid paperId, CancellationToken cancellationToken)
+    {
+        var sessions = await dbContext.AbTestSessions
+            .AsNoTracking()
+            .Include(s => s.Paper)
+            .Include(s => s.PaperSummaries)
+            .Where(s => s.PaperId == paperId)
+            .OrderByDescending(s => s.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return sessions.Select(s => new AbTestSessionModel(
+            s.Id,
+            s.Name,
+            s.PaperId,
+            s.Paper?.Title ?? string.Empty,
+            s.Status.ToString(),
+            s.CreatedAt,
+            s.CompletedAt,
+            s.PaperSummaries.Select(r => new SummaryResultModel(
+                r.Id,
+                r.ModelName,
+                r.SummaryJson,
+                r.Status.ToString(),
+                r.CreatedAt,
+                r.IsSelected
+            )).ToArray()
+        )).ToList();
+    }
+
+    public async Task<AbTestSessionModel?> SelectAbTestResultAsync(Guid sessionId, Guid summaryId, CancellationToken cancellationToken)
+    {
+        var session = await dbContext.AbTestSessions
+            .Include(s => s.Paper)
+            .Include(s => s.PaperSummaries)
+            .FirstOrDefaultAsync(s => s.Id == sessionId, cancellationToken);
+
+        if (session == null)
+        {
+            return null;
+        }
+
+        var summaries = session.PaperSummaries.ToList();
+        var selectedSummary = summaries.FirstOrDefault(s => s.Id == summaryId);
+        if (selectedSummary == null)
+        {
+            return null;
+        }
+
+        foreach (var summary in summaries)
+        {
+            summary.IsSelected = summary.Id == summaryId;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new AbTestSessionModel(
+            session.Id,
+            session.Name,
+            session.PaperId,
+            session.Paper?.Title ?? string.Empty,
+            session.Status.ToString(),
+            session.CreatedAt,
+            session.CompletedAt,
+            session.PaperSummaries.Select(r => new SummaryResultModel(
+                r.Id,
+                r.ModelName,
+                r.SummaryJson,
+                r.Status.ToString(),
+                r.CreatedAt,
+                r.IsSelected
+            )).ToArray()
+        );
+    }
 }

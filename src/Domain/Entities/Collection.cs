@@ -8,6 +8,8 @@ public sealed class Collection : AuditableEntity
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public bool IsShared { get; set; }
+    public bool IsPublic { get; set; }
+    public string? ShareToken { get; set; }
     public int SortOrder { get; set; }
 
     [ForeignKey(nameof(UserId))]

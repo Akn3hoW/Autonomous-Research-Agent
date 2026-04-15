@@ -9,6 +9,7 @@ using AutonomousResearchAgent.Infrastructure.Persistence;
 using AutonomousResearchAgent.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Xunit;
 
 namespace Infrastructure.Tests;
@@ -149,6 +150,8 @@ public sealed class PaperDocumentServiceTests
         return new PaperService(
             dbContext,
             semanticScholarClient,
+            Mock.Of<IArxivClient>(),
+            Mock.Of<ICrossRefClient>(),
             jobService,
             new NoOpEmbeddingIndexingService(),
             NullLogger<PaperService>.Instance);

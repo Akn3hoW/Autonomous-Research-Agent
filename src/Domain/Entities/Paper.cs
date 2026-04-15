@@ -29,4 +29,5 @@ public sealed class Paper : AuditableEntity
     public ICollection<PaperEmbedding> Embeddings { get; set; } = [];
     public ICollection<PaperDocument> Documents { get; set; } = [];
     public ICollection<PaperConcept> Concepts { get; set; } = [];
+    public ICollection<PaperTag> PaperTags { get; set; } = [];
 }

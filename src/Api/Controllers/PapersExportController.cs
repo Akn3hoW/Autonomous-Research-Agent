@@ -65,7 +65,7 @@ public sealed class PapersExportController(
             }
 
             var query = new PaperQuery(currentPage, pageSize);
-            var result = await paperService.ListAsync(query, cancellationToken);
+            var result = await paperService.ListAsync(query, null, cancellationToken);
 
             foreach (var paper in result.Items)
             {
@@ -114,7 +114,7 @@ public sealed class PapersExportController(
             }
 
             var query = new PaperQuery(currentPage, pageSize);
-            var result = await paperService.ListAsync(query, cancellationToken);
+            var result = await paperService.ListAsync(query, null, cancellationToken);
 
             foreach (var paper in result.Items)
             {

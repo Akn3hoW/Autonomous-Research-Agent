@@ -34,6 +34,11 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<PaperConcept> PaperConcepts => Set<PaperConcept>();
     public DbSet<UserWebhook> UserWebhooks => Set<UserWebhook>();
     public DbSet<BatchJob> BatchJobs => Set<BatchJob>();
+    public DbSet<UserNotificationPreferences> UserNotificationPreferences => Set<UserNotificationPreferences>();
+    public DbSet<Tag> Tags => Set<Tag>();
+    public DbSet<PaperTag> PaperTags => Set<PaperTag>();
+    public DbSet<AbTestSession> AbTestSessions => Set<AbTestSession>();
+    public DbSet<ResearchGoalTemplate> ResearchGoalTemplates => Set<ResearchGoalTemplate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -55,6 +60,48 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         {
             modelBuilder.Entity<PaperEmbedding>().Ignore(x => x.Vector);
         }
+
+        modelBuilder.Entity<Tag>().HasIndex(t => t.Name);
+        modelBuilder.Entity<Tag>().HasIndex(t => new { t.Name, t.UserId }).IsUnique();
+
+        modelBuilder.Entity<PaperTag>().HasIndex(pt => pt.Tag);
+        modelBuilder.Entity<PaperTag>().HasIndex(pt => new { pt.Tag, pt.PaperId, pt.UserId }).IsUnique();
+
+        modelBuilder.Entity<PaperTag>()
+            .HasOne(pt => pt.Paper)
+            .WithMany(p => p.PaperTags)
+            .HasForeignKey(pt => pt.PaperId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PaperTag>()
+            .HasOne(pt => pt.User)
+            .WithMany()
+            .HasForeignKey(pt => pt.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Tag>()
+            .HasOne(t => t.User)
+            .WithMany()
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<AbTestSession>()
+            .HasOne(a => a.Paper)
+            .WithMany()
+            .HasForeignKey(a => a.PaperId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<AbTestSession>()
+            .HasOne(a => a.User)
+            .WithMany()
+            .HasForeignKey(a => a.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PaperSummary>()
+            .HasOne(s => s.AbTestSession)
+            .WithMany(a => a.PaperSummaries)
+            .HasForeignKey(s => s.AbTestSessionId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

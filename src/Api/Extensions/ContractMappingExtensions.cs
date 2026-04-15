@@ -38,6 +38,7 @@ public static class ContractMappingExtensions
             request.Venue,
             ParseNullableEnum<PaperSource>(request.Source),
             ParseNullableEnum<PaperStatus>(request.Status),
+            request.Tag,
             request.SortBy,
             ParseSortDirection(request.SortDirection));
 
@@ -68,7 +69,7 @@ public static class ContractMappingExtensions
             request.Metadata);
 
     public static ImportPapersCommand ToApplicationModel(this ImportPapersRequest request) =>
-        new(request.Queries, request.Limit, request.StoreImportedPapers);
+        new(request.Queries, request.Limit, request.StoreImportedPapers, request.Source ?? "semanticscholar");
 
     public static CreatePaperDocumentCommand ToApplicationModel(this CreatePaperDocumentRequest request, Guid paperId) =>
         new(paperId, request.SourceUrl, request.FileName, request.MediaType, request.RequiresOcr, request.Metadata);
@@ -119,10 +120,10 @@ public static class ContractMappingExtensions
         new(request.Filter, requestedBy);
 
     public static PaperListItemDto ToDto(this PaperListItem model) =>
-        new(model.Id, model.Title, model.Authors, model.Year, model.Venue, model.CitationCount, model.Source.ToString(), model.Status.ToString(), model.CreatedAt, model.UpdatedAt);
+        new(model.Id, model.Title, model.Authors, model.Year, model.Venue, model.CitationCount, model.Source.ToString(), model.Status.ToString(), model.Tags, model.CreatedAt, model.UpdatedAt);
 
     public static PaperDetailDto ToDto(this PaperDetail model) =>
-        new(model.Id, model.SemanticScholarId, model.Doi, model.Title, model.Abstract, model.Authors, model.Year, model.Venue, model.CitationCount, model.Source.ToString(), model.Status.ToString(), model.Metadata, model.CreatedAt, model.UpdatedAt);
+        new(model.Id, model.SemanticScholarId, model.Doi, model.Title, model.Abstract, model.Authors, model.Year, model.Venue, model.CitationCount, model.Source.ToString(), model.Status.ToString(), model.Metadata, model.Tags, model.CreatedAt, model.UpdatedAt);
 
     public static ImportPapersResponse ToDto(this ImportPapersResult result) =>
         new(result.Papers.Select(p => p.ToDto()).ToList(), result.ImportedCount);
@@ -137,6 +138,18 @@ public static class ContractMappingExtensions
 
     public static SummaryDto ToDto(this SummaryModel model) =>
         new(model.Id, model.PaperId, model.ModelName, model.PromptVersion, model.Status.ToString(), model.Summary, model.ReviewedBy, model.ReviewedAt, model.ReviewNotes, model.CreatedAt, model.UpdatedAt);
+
+    public static SummaryDiffDto ToDto(this SummaryDiffModel model) =>
+        new(
+            model.PaperId,
+            model.PaperTitle,
+            new SummaryVersionDto(model.Summary1.Id, model.Summary1.ModelName, model.Summary1.PromptVersion, model.Summary1.CreatedAt, model.Summary1.SummaryText, model.Summary1.Status),
+            new SummaryVersionDto(model.Summary2.Id, model.Summary2.ModelName, model.Summary2.PromptVersion, model.Summary2.CreatedAt, model.Summary2.SummaryText, model.Summary2.Status),
+            new FieldDiffsDto(
+                new FieldDiffDto(model.FieldDiffs.Summary.Left, model.FieldDiffs.Summary.Right, model.FieldDiffs.Summary.DiffHtml, model.FieldDiffs.Summary.Changed),
+                new FieldDiffDto(model.FieldDiffs.ModelName.Left, model.FieldDiffs.ModelName.Right, model.FieldDiffs.ModelName.DiffHtml, model.FieldDiffs.ModelName.Changed),
+                new FieldDiffDto(model.FieldDiffs.PromptVersion.Left, model.FieldDiffs.PromptVersion.Right, model.FieldDiffs.PromptVersion.DiffHtml, model.FieldDiffs.PromptVersion.Changed)),
+            model.OverallSimilarity);
 
     public static SearchResultDto ToDto(this SearchResultModel model) =>
         new(model.PaperId, model.Title, model.Abstract, model.Authors, model.Year, model.Venue, model.Score, model.MatchType, model.Highlights);
@@ -182,6 +195,13 @@ public static class ContractMappingExtensions
 
     public static ConceptStatisticsDto ToDto(this ConceptStatistics model) =>
         new(model.ByType.Select(c => new ConceptTypeCountDto(c.ConceptType.ToString(), c.Count, c.PaperCount)).ToList(), model.TotalConcepts, model.TotalPapers);
+
+    public static AutonomousResearchAgent.Application.Summaries.CreateAbTestRequest ToApplicationModel(this AutonomousResearchAgent.Api.Contracts.Summaries.CreateAbTestRequest request) =>
+        new(request.Name, request.PaperId, request.ModelNames);
+
+    public static AbTestSessionDto ToDto(this AbTestSessionModel model) =>
+        new(model.Id, model.Name, model.PaperId, model.PaperTitle, model.Status, model.CreatedAt, model.CompletedAt,
+            model.Results.Select(r => new SummaryResultDto(r.SummaryId, r.ModelName, r.Summary, r.SummaryStatus, r.CreatedAt, r.IsSelected)).ToArray());
 
     private static TEnum ParseEnum<TEnum>(string? value, TEnum defaultValue) where TEnum : struct, Enum =>
         Enum.TryParse<TEnum>(value, true, out var parsed) ? parsed : defaultValue;

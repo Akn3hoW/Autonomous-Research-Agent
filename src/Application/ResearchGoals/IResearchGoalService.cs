@@ -6,6 +6,8 @@ public interface IResearchGoalService
 {
     Task<ResearchGoalModel> CreateResearchGoalAsync(CreateResearchGoalCommand command, CancellationToken cancellationToken);
     Task<ResearchGoalModel> GetResearchGoalStatusAsync(Guid jobId, CancellationToken cancellationToken);
+    Task<IEnumerable<ResearchGoalTemplateModel>> GetTemplatesAsync(CancellationToken cancellationToken);
+    Task<ResearchGoalModel> CreateFromTemplateAsync(CreateFromTemplateCommand command, CancellationToken cancellationToken);
 }
 
 public sealed record CreateResearchGoalCommand(
@@ -25,3 +27,17 @@ public sealed record ResearchGoalStepModel(
     string Description,
     Guid? SubJobId,
     string Status);
+
+public sealed record ResearchGoalTemplateModel(
+    Guid Id,
+    string Name,
+    string? Description,
+    string GoalType,
+    string? Parameters,
+    string PromptTemplate);
+
+public sealed record CreateFromTemplateCommand(
+    Guid TemplateId,
+    string Name,
+    Dictionary<string, string> Parameters,
+    string? CreatedBy);

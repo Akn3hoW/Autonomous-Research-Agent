@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace AutonomousResearchAgent.Api.Contracts.ResearchGoals;
@@ -19,3 +20,18 @@ public sealed record ResearchGoalStep(
     string Description,
     Guid? SubJobId,
     string Status);
+
+public sealed record ResearchGoalTemplateDto(
+    Guid Id,
+    string Name,
+    string? Description,
+    string GoalType,
+    string? Parameters,
+    string PromptTemplate);
+
+public sealed class CreateFromTemplateRequest
+{
+    public Guid TemplateId { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public Dictionary<string, string> Parameters { get; init; } = new();
+}

@@ -26,20 +26,19 @@ public sealed class PapersController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PagedResponse<PaperListItemDto>>> GetPapers([FromQuery] PaperQueryRequest request, CancellationToken cancellationToken)
     {
-        var result = await paperService.ListAsync(request.ToApplicationModel(), cancellationToken);
+        var userId = GetUserId();
+        var result = await paperService.ListAsync(request.ToApplicationModel(), userId, cancellationToken);
         return Ok(result.ToPagedResponse(item => item.ToDto()));
     }
 
-    /// <summary>
-    /// Gets a paper by its internal identifier.
-    /// </summary>
     [HttpGet("{id:guid}")]
     [Authorize(Policy = PolicyNames.ReadAccess)]
     [ProducesResponseType(typeof(PaperDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PaperDetailDto>> GetPaper(Guid id, CancellationToken cancellationToken)
     {
-        var paper = await paperService.GetByIdAsync(id, cancellationToken);
+        var userId = GetUserId();
+        var paper = await paperService.GetByIdAsync(id, userId, cancellationToken);
         return Ok(paper.ToDto());
     }
 
@@ -122,6 +121,14 @@ public sealed class PapersController(
     {
         await citationGraphService.IngestCitationsAsync(id, cancellationToken);
         return NoContent();
+    }
+
+    private Guid? GetUserId()
+    {
+        var userIdClaim = User.FindFirst("user_id")?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            return null;
+        return userId;
     }
 }
 

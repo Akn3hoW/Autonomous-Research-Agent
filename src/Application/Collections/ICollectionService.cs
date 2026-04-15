@@ -11,4 +11,7 @@ public interface ICollectionService
     Task RemovePaperAsync(Guid collectionId, RemovePaperCommand command, int userId, CancellationToken cancellationToken);
     Task ReorderPapersAsync(Guid collectionId, ReorderPapersCommand command, int userId, CancellationToken cancellationToken);
     Task<byte[]> ExportAsync(Guid collectionId, int userId, CancellationToken cancellationToken);
+    Task<SharedCollectionDetail?> GetSharedCollectionAsync(string token, CancellationToken cancellationToken);
+    Task<string> GenerateShareTokenAsync(Guid collectionId, int userId, CancellationToken cancellationToken);
+    Task RevokeShareTokenAsync(Guid collectionId, int userId, CancellationToken cancellationToken);
 }

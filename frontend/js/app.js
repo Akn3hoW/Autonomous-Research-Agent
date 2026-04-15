@@ -26,6 +26,9 @@ const routes = [
   { path: '/literature-review', module: () => import('./pages/literature-review.js'), title: 'Literature Review' },
   { path: '/watchlist', module: () => import('./pages/watchlist.js'), title: 'Watchlist' },
   { path: '/reading-list', module: () => import('./pages/reading-list.js'), title: 'Reading List' },
+  { path: '/research-goal-templates', module: () => import('./pages/research-goal-templates.js'), title: 'Research Goal Templates' },
+  { path: '/compare', module: () => import('./pages/compare.js'), title: 'Compare Papers' },
+  { path: '/analytics', module: () => import('./pages/analytics.js'), title: 'Analytics' },
 ];
 
 // ── Router ───────────────────────────────────────

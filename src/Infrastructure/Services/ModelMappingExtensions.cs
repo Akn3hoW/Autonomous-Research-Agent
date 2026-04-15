@@ -20,6 +20,7 @@ internal static class ModelMappingExtensions
             paper.CitationCount,
             paper.Source,
             paper.Status,
+            paper.PaperTags.Select(pt => pt.Tag).ToList().AsReadOnly(),
             paper.CreatedAt,
             paper.UpdatedAt);
 
@@ -37,6 +38,7 @@ internal static class ModelMappingExtensions
             paper.Source,
             paper.Status,
             JsonNodeMapper.Deserialize(paper.MetadataJson),
+            paper.PaperTags.Select(pt => pt.Tag).ToList().AsReadOnly(),
             paper.CreatedAt,
             paper.UpdatedAt);
 

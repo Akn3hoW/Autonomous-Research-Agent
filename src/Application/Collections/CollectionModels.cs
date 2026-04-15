@@ -15,6 +15,9 @@ public sealed record CollectionDetail(
     string Name,
     string? Description,
     bool IsShared,
+    bool IsPublic,
+    string? ShareToken,
+    string? ShareUrl,
     int SortOrder,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
@@ -45,3 +48,20 @@ public sealed record ReorderPapersCommand(
 public sealed record AddPaperCommand(Guid PaperId);
 
 public sealed record RemovePaperCommand(Guid PaperId);
+
+public sealed record SharedCollectionDetail(
+    Guid Id,
+    string Name,
+    string? Description,
+    int SortOrder,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    IReadOnlyCollection<SharedCollectionPaperDetail> Papers);
+
+public sealed record SharedCollectionPaperDetail(
+    Guid PaperId,
+    string Title,
+    IReadOnlyCollection<string> Authors,
+    int? Year,
+    int SortOrder,
+    DateTimeOffset AddedAt);

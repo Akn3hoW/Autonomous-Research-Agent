@@ -1,4 +1,6 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Jobs;
 using AutonomousResearchAgent.Application.Papers;
@@ -80,6 +82,57 @@ public sealed class ResearchGoalService(
             .ToList();
 
         return new ResearchGoalModel(job.Id, job.Status.ToString(), steps, job.ResultJson);
+    }
+
+    public async Task<IEnumerable<ResearchGoalTemplateModel>> GetTemplatesAsync(CancellationToken cancellationToken)
+    {
+        var templates = await dbContext.ResearchGoalTemplates
+            .AsNoTracking()
+            .Where(t => t.IsActive)
+            .OrderBy(t => t.Name)
+            .ToListAsync(cancellationToken);
+
+        return templates.Select(t => new ResearchGoalTemplateModel(
+            t.Id,
+            t.Name,
+            t.Description,
+            t.GoalType.ToString(),
+            t.Parameters,
+            t.PromptTemplate));
+    }
+
+    public async Task<ResearchGoalModel> CreateFromTemplateAsync(CreateFromTemplateCommand command, CancellationToken cancellationToken)
+    {
+        var template = await dbContext.ResearchGoalTemplates
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == command.TemplateId && t.IsActive, cancellationToken)
+            ?? throw new NotFoundException("Template not found", command.TemplateId);
+
+        var templateParams = template.Parameters != null
+            ? JsonSerializer.Deserialize<string[]>(template.Parameters) ?? []
+            : [];
+
+        foreach (var param in templateParams)
+        {
+            if (!command.Parameters.ContainsKey(param))
+            {
+                throw new InvalidOperationException($"Missing required parameter: {param}");
+            }
+        }
+
+        var prompt = template.PromptTemplate;
+        foreach (var (key, value) in command.Parameters)
+        {
+            prompt = prompt.Replace($"{{{{{key}}}}}", value);
+        }
+
+        var createCommand = new CreateResearchGoalCommand(
+            prompt,
+            20,
+            null,
+            command.CreatedBy);
+
+        return await CreateResearchGoalAsync(createCommand, cancellationToken);
     }
 
     private async Task<JobModel> CreateChildJobAsync(Guid parentJobId, JobType type, JsonObject payload, CancellationToken cancellationToken)

@@ -15,6 +15,9 @@ public sealed record CollectionDetailResponse(
     string Name,
     string? Description,
     bool IsShared,
+    bool IsPublic,
+    string? ShareToken,
+    string? ShareUrl,
     int SortOrder,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
@@ -27,6 +30,25 @@ public sealed record CollectionPaperItem(
     int? Year,
     int SortOrder,
     DateTimeOffset AddedAt);
+
+public sealed record SharedCollectionResponse(
+    Guid Id,
+    string Name,
+    string? Description,
+    int SortOrder,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    IReadOnlyCollection<SharedCollectionPaperItem> Papers);
+
+public sealed record SharedCollectionPaperItem(
+    Guid PaperId,
+    string Title,
+    IReadOnlyCollection<string> Authors,
+    int? Year,
+    int SortOrder,
+    DateTimeOffset AddedAt);
+
+public sealed record ShareCollectionResponse(string ShareToken, string ShareUrl);
 
 public sealed class CreateCollectionRequest
 {

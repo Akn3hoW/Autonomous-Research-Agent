@@ -19,6 +19,10 @@ public sealed class CollectionConfiguration : IEntityTypeConfiguration<Collectio
         builder.Property(x => x.Name).HasMaxLength(256).IsRequired();
         builder.Property(x => x.Description).HasMaxLength(2048);
 
+        builder.Property(x => x.IsPublic);
+        builder.Property(x => x.ShareToken).HasMaxLength(100);
+        builder.HasIndex(x => x.ShareToken);
+
         builder.HasIndex(x => x.IsShared);
 
         builder.HasMany(x => x.CollectionPapers)

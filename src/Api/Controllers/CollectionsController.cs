@@ -25,6 +25,26 @@ public sealed class CollectionsController(
             c.Id, c.Name, c.Description, c.IsShared, c.PaperCount, c.SortOrder, c.CreatedAt, c.UpdatedAt)).ToList());
     }
 
+    [HttpGet("shared/{token}")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(SharedCollectionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<SharedCollectionResponse>> GetSharedCollection(string token, CancellationToken cancellationToken)
+    {
+        var collection = await collectionService.GetSharedCollectionAsync(token, cancellationToken);
+        if (collection is null)
+            return NotFound();
+        return Ok(new SharedCollectionResponse(
+            collection.Id,
+            collection.Name,
+            collection.Description,
+            collection.SortOrder,
+            collection.CreatedAt,
+            collection.UpdatedAt,
+            collection.Papers.Select(p => new SharedCollectionPaperItem(
+                p.PaperId, p.Title, p.Authors, p.Year, p.SortOrder, p.AddedAt)).ToList()));
+    }
+
     [HttpGet("{id:guid}")]
     [Authorize(Policy = PolicyNames.ReadAccess)]
     [ProducesResponseType(typeof(CollectionDetailResponse), StatusCodes.Status200OK)]
@@ -38,6 +58,9 @@ public sealed class CollectionsController(
             collection.Name,
             collection.Description,
             collection.IsShared,
+            collection.IsPublic,
+            collection.ShareToken,
+            collection.ShareUrl,
             collection.SortOrder,
             collection.CreatedAt,
             collection.UpdatedAt,
@@ -139,6 +162,29 @@ public sealed class CollectionsController(
 
         var zipBytes = await collectionService.ExportAsync(id, userId, cancellationToken);
         return File(zipBytes, "application/zip", $"collection_{id}.zip");
+    }
+
+    [HttpPost("{id:guid}/share")]
+    [Authorize(Policy = PolicyNames.EditAccess)]
+    [ProducesResponseType(typeof(ShareCollectionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ShareCollectionResponse>> ShareCollection(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var token = await collectionService.GenerateShareTokenAsync(id, userId, cancellationToken);
+        var shareUrl = $"/api/v1/collections/shared/{token}";
+        return Ok(new ShareCollectionResponse(token, shareUrl));
+    }
+
+    [HttpDelete("{id:guid}/share")]
+    [Authorize(Policy = PolicyNames.EditAccess)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RevokeSharing(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        await collectionService.RevokeShareTokenAsync(id, userId, cancellationToken);
+        return NoContent();
     }
 
     private int GetUserId()

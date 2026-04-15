@@ -32,14 +32,14 @@ public sealed class ControllerTests
         var pagedResult = new PagedResult<PaperListItem>(
             new List<PaperListItem>
             {
-                new(Guid.NewGuid(), "Paper 1", new[] { "Author 1" }, 2025, "Venue A", 10, PaperSource.Manual, PaperStatus.Draft, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow),
-                new(Guid.NewGuid(), "Paper 2", new[] { "Author 2" }, 2024, "Venue B", 5, PaperSource.SemanticScholar, PaperStatus.Ready, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)
+                new(Guid.NewGuid(), "Paper 1", new[] { "Author 1" }, 2025, "Venue A", 10, PaperSource.Manual, PaperStatus.Draft, Array.Empty<string>(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow),
+                new(Guid.NewGuid(), "Paper 2", new[] { "Author 2" }, 2024, "Venue B", 5, PaperSource.SemanticScholar, PaperStatus.Ready, Array.Empty<string>(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)
             },
             1,
             25,
             2);
 
-        mockService.Setup(s => s.ListAsync(It.IsAny<PaperQuery>(), cancellationToken))
+        mockService.Setup(s => s.ListAsync(It.IsAny<PaperQuery>(), It.IsAny<Guid?>(), cancellationToken))
             .ReturnsAsync(pagedResult);
 
         var result = await controller.GetPapers(new PaperQueryRequest(), cancellationToken);
@@ -63,9 +63,9 @@ public sealed class ControllerTests
 
         var paperDetail = new PaperDetail(
             paperId, "ss-1", "10.1000/test", "Test Paper", "Abstract", new[] { "Author" }, 2025, "Venue", 10,
-            PaperSource.Manual, PaperStatus.Draft, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+            PaperSource.Manual, PaperStatus.Draft, null, Array.Empty<string>(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
 
-        mockService.Setup(s => s.GetByIdAsync(paperId, cancellationToken))
+        mockService.Setup(s => s.GetByIdAsync(paperId, It.IsAny<Guid?>(), cancellationToken))
             .ReturnsAsync(paperDetail);
 
         var result = await controller.GetPaper(paperId, cancellationToken);
@@ -94,7 +94,7 @@ public sealed class ControllerTests
 
         var created = new PaperDetail(
             Guid.NewGuid(), null, null, "New Paper", "Abstract", new[] { "Author" }, 2025, null, 0,
-            PaperSource.Manual, PaperStatus.Draft, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+            PaperSource.Manual, PaperStatus.Draft, null, Array.Empty<string>(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
 
         mockService.Setup(s => s.CreateAsync(It.IsAny<CreatePaperCommand>(), cancellationToken))
             .ReturnsAsync(created);
@@ -120,7 +120,7 @@ public sealed class ControllerTests
 
         var updated = new PaperDetail(
             paperId, null, null, "Updated Title", null, Array.Empty<string>(), 0, null, 0,
-            PaperSource.Manual, PaperStatus.Draft, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+            PaperSource.Manual, PaperStatus.Draft, null, Array.Empty<string>(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
 
         mockService.Setup(s => s.UpdateAsync(paperId, It.IsAny<UpdatePaperCommand>(), cancellationToken))
             .ReturnsAsync(updated);
@@ -325,7 +325,7 @@ public sealed class ControllerTests
     public async Task SummariesController_GetSummariesForPaper_returns_ok_with_summaries_list()
     {
         var mockService = new Mock<ISummaryService>();
-        var controller = new SummariesController(mockService.Object);
+        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>());
         var paperId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -348,7 +348,7 @@ public sealed class ControllerTests
     public async Task SummariesController_CreateSummary_returns_created()
     {
         var mockService = new Mock<ISummaryService>();
-        var controller = new SummariesController(mockService.Object);
+        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>());
         var paperId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -375,7 +375,7 @@ public sealed class ControllerTests
     public async Task SummariesController_GetSummary_returns_ok()
     {
         var mockService = new Mock<ISummaryService>();
-        var controller = new SummariesController(mockService.Object);
+        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>());
         var summaryId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -396,7 +396,7 @@ public sealed class ControllerTests
     public async Task SummariesController_UpdateSummary_returns_ok()
     {
         var mockService = new Mock<ISummaryService>();
-        var controller = new SummariesController(mockService.Object);
+        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>());
         var summaryId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -419,7 +419,7 @@ public sealed class ControllerTests
     public async Task SummariesController_ApproveSummary_returns_ok()
     {
         var mockService = new Mock<ISummaryService>();
-        var controller = new SummariesController(mockService.Object);
+        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>());
         var summaryId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -442,7 +442,7 @@ public sealed class ControllerTests
     public async Task SummariesController_RejectSummary_returns_ok()
     {
         var mockService = new Mock<ISummaryService>();
-        var controller = new SummariesController(mockService.Object);
+        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>());
         var summaryId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 

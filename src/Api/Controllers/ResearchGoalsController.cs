@@ -48,4 +48,43 @@ public sealed class ResearchGoalsController(IResearchGoalService researchGoalSer
 
         return Ok(response);
     }
+
+    [HttpGet("templates")]
+    [Authorize(Policy = PolicyNames.ReadAccess)]
+    [ProducesResponseType(typeof(IEnumerable<ResearchGoalTemplateDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<ResearchGoalTemplateDto>>> GetTemplates(CancellationToken cancellationToken)
+    {
+        var templates = await researchGoalService.GetTemplatesAsync(cancellationToken);
+        var dtos = templates.Select(t => new ResearchGoalTemplateDto(
+            t.Id,
+            t.Name,
+            t.Description,
+            t.GoalType,
+            t.Parameters,
+            t.PromptTemplate));
+        return Ok(dtos);
+    }
+
+    [HttpPost("from-template")]
+    [Authorize(Policy = PolicyNames.EditAccess)]
+    [ProducesResponseType(typeof(ResearchGoalResponse), StatusCodes.Status201Created)]
+    public async Task<ActionResult<ResearchGoalResponse>> CreateFromTemplate(
+        [FromBody] CreateFromTemplateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new CreateFromTemplateCommand(
+            request.TemplateId,
+            request.Name,
+            request.Parameters,
+            User.GetActorName());
+
+        var result = await researchGoalService.CreateFromTemplateAsync(command, cancellationToken);
+
+        var response = new ResearchGoalResponse(
+            result.JobId,
+            result.Status,
+            result.Steps.Select(s => new ResearchGoalStep(s.StepType, s.Description, s.SubJobId, s.Status)).ToList());
+
+        return CreatedAtAction(nameof(GetResearchGoal), new { id = result.JobId }, response);
+    }
 }

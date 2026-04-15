@@ -12,6 +12,7 @@ public sealed record PaperListItem(
     int CitationCount,
     PaperSource Source,
     PaperStatus Status,
+    IReadOnlyCollection<string> Tags,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
@@ -28,6 +29,7 @@ public sealed record PaperDetail(
     PaperSource Source,
     PaperStatus Status,
     JsonNode? Metadata,
+    IReadOnlyCollection<string> Tags,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
@@ -39,6 +41,7 @@ public sealed record PaperQuery(
     string? Venue = null,
     PaperSource? Source = null,
     PaperStatus? Status = null,
+    string? Tag = null,
     string? SortBy = null,
     Common.SortDirection SortDirection = Common.SortDirection.Desc);
 
@@ -69,7 +72,8 @@ public sealed record UpdatePaperCommand(
 public sealed record ImportPapersCommand(
     IReadOnlyCollection<string> Queries,
     int Limit,
-    bool StoreImportedPapers);
+    bool StoreImportedPapers,
+    string Source = "semanticscholar");
 
 public sealed record ImportPapersResult(
     IReadOnlyCollection<PaperDetail> Papers,

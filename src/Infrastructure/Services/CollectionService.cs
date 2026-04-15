@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text.Json;
 using AutonomousResearchAgent.Application.Collections;
 using AutonomousResearchAgent.Application.Common;
@@ -56,11 +57,18 @@ public sealed class CollectionService : ICollectionService
                 cp.AddedAt))
             .ToList();
 
+        var shareUrl = collection.ShareToken is not null
+            ? $"/api/v1/collections/shared/{collection.ShareToken}"
+            : null;
+
         return new CollectionDetail(
             collection.Id,
             collection.Name,
             collection.Description,
             collection.IsShared,
+            collection.IsPublic,
+            collection.ShareToken,
+            shareUrl,
             collection.SortOrder,
             collection.CreatedAt,
             collection.UpdatedAt,
@@ -292,6 +300,72 @@ public sealed class CollectionService : ICollectionService
         var invalid = Path.GetInvalidFileNameChars();
         var sanitized = string.Join("_", name.Split(invalid, StringSplitOptions.RemoveEmptyEntries));
         return sanitized.Length > 100 ? sanitized[..100] : sanitized;
+    }
+
+    public async Task<SharedCollectionDetail?> GetSharedCollectionAsync(string token, CancellationToken cancellationToken)
+    {
+        var collection = await _db.Collections
+            .Include(c => c.CollectionPapers)
+            .ThenInclude(cp => cp.Paper)
+            .FirstOrDefaultAsync(c => c.ShareToken == token && c.IsPublic, cancellationToken);
+
+        if (collection is null)
+            return null;
+
+        var papers = collection.CollectionPapers
+            .OrderBy(cp => cp.SortOrder)
+            .Select(cp => new SharedCollectionPaperDetail(
+                cp.PaperId,
+                cp.Paper.Title,
+                cp.Paper.Authors,
+                cp.Paper.Year,
+                cp.SortOrder,
+                cp.AddedAt))
+            .ToList();
+
+        return new SharedCollectionDetail(
+            collection.Id,
+            collection.Name,
+            collection.Description,
+            collection.SortOrder,
+            collection.CreatedAt,
+            collection.UpdatedAt,
+            papers);
+    }
+
+    public async Task<string> GenerateShareTokenAsync(Guid collectionId, int userId, CancellationToken cancellationToken)
+    {
+        var collection = await _db.Collections
+            .FirstOrDefaultAsync(c => c.Id == collectionId && c.UserId == userId, cancellationToken)
+            ?? throw new NotFoundException("Collection", collectionId);
+
+        if (string.IsNullOrEmpty(collection.ShareToken))
+        {
+            collection.ShareToken = GenerateToken();
+        }
+
+        collection.IsPublic = true;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return collection.ShareToken;
+    }
+
+    public async Task RevokeShareTokenAsync(Guid collectionId, int userId, CancellationToken cancellationToken)
+    {
+        var collection = await _db.Collections
+            .FirstOrDefaultAsync(c => c.Id == collectionId && c.UserId == userId, cancellationToken)
+            ?? throw new NotFoundException("Collection", collectionId);
+
+        collection.ShareToken = null;
+        collection.IsPublic = false;
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string GenerateToken()
+    {
+        var bytes = new byte[24];
+        RandomNumberGenerator.Fill(bytes);
+        return Convert.ToBase64String(bytes).Replace("+", "-").Replace("/", "_").TrimEnd('=');
     }
 
     private class CollectionManifest

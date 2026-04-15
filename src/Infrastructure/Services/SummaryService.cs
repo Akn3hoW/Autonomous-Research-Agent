@@ -58,7 +58,9 @@ public sealed class SummaryService(
             PromptVersion = command.PromptVersion.Trim(),
             Status = command.Status,
             SummaryJson = JsonNodeMapper.Serialize(command.Summary),
-            SearchText = command.SearchText
+            SearchText = command.SearchText,
+            AbTestSessionId = command.AbTestSessionId,
+            IsSelected = command.IsSelected
         };
 
         dbContext.PaperSummaries.Add(entity);

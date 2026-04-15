@@ -7,6 +7,7 @@ using AutonomousResearchAgent.Infrastructure.Persistence;
 using AutonomousResearchAgent.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Xunit;
 
 namespace Infrastructure.Tests;
@@ -155,6 +156,8 @@ public sealed class PaperAndSummaryEmbeddingIntegrationTests
         return new PaperService(
             dbContext,
             new FakeSemanticScholarClient(Array.Empty<SemanticScholarPaperImportModel>()),
+            Mock.Of<IArxivClient>(),
+            Mock.Of<ICrossRefClient>(),
             jobService,
             indexingService,
             NullLogger<PaperService>.Instance);

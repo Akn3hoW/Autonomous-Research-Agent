@@ -126,8 +126,9 @@ public sealed class AutonomousJobRunner(
         {
             var requestedModelName = payload["modelName"]?.GetValue<string>() ?? _options.Model;
             var promptVersion = payload["promptVersion"]?.GetValue<string>() ?? "v1";
+            var abTestSessionId = payload["abTestSessionId"]?.GetValue<Guid>();
 
-            var paper = await paperService.GetByIdAsync(paperId, cancellationToken);
+            var paper = await paperService.GetByIdAsync(paperId, null, cancellationToken);
             var summary = await summarizationService.GenerateSummaryAsync(paper, requestedModelName, promptVersion, cancellationToken);
 
             var keyFindings = summary?["keyFindings"]?.AsArray().Select(x => x?.GetValue<string>() ?? string.Empty) ?? [];
@@ -139,10 +140,37 @@ public sealed class AutonomousJobRunner(
             }.Where(x => !string.IsNullOrWhiteSpace(x)));
 
             var created = await summaryService.CreateAsync(
-                new CreateSummaryCommand(paperId, _options.Model, promptVersion, SummaryStatus.Generated, summary, searchText),
+                new CreateSummaryCommand(paperId, requestedModelName, promptVersion, SummaryStatus.Generated, summary, searchText, abTestSessionId),
                 cancellationToken);
 
             job.ResultJson = JsonSerializer.SerializeToNode(new { summaryId = created.Id, paperId = created.PaperId, modelName = created.ModelName })?.ToJsonString();
+
+            if (abTestSessionId.HasValue)
+            {
+                await CheckAbTestSessionCompletionAsync(abTestSessionId.Value, cancellationToken);
+            }
+        }
+    }
+
+    private async Task CheckAbTestSessionCompletionAsync(Guid sessionId, CancellationToken cancellationToken)
+    {
+        var session = await dbContext.AbTestSessions
+            .Include(s => s.PaperSummaries)
+            .FirstOrDefaultAsync(s => s.Id == sessionId, cancellationToken);
+
+        if (session == null)
+        {
+            return;
+        }
+
+        var allCompleted = session.PaperSummaries.All(s => s.Status == SummaryStatus.Generated || s.Status == SummaryStatus.Approved || s.Status == SummaryStatus.Rejected);
+        var anyFailed = session.PaperSummaries.Any(s => s.Status == SummaryStatus.Rejected);
+
+        if (allCompleted)
+        {
+            session.Status = anyFailed ? AbTestSessionStatus.Failed : AbTestSessionStatus.Completed;
+            session.CompletedAt = DateTimeOffset.UtcNow;
+            await dbContext.SaveChangesAsync(cancellationToken);
         }
     }
 
@@ -456,7 +484,7 @@ confidence: number
         {
             try
             {
-                var paper = await paperService.GetByIdAsync(paperId, cancellationToken);
+            var paper = await paperService.GetByIdAsync(paperId, null, cancellationToken);
                 var summary = await summarizationService.GenerateSummaryAsync(paper, _options.Model, "v1", cancellationToken);
 
                 await summaryService.CreateAsync(

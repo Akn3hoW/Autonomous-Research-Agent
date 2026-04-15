@@ -10,7 +10,10 @@ namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
 [Route("api/v1")]
-public sealed class SummariesController(ISummaryService summaryService) : ControllerBase
+public sealed class SummariesController(
+    ISummaryService summaryService,
+    ISummaryDiffService summaryDiffService,
+    ISummarizationService summarizationService) : ControllerBase
 {
     [HttpGet("papers/{id:guid}/summaries")]
     [Authorize(Policy = PolicyNames.ReadAccess)]
@@ -19,6 +22,17 @@ public sealed class SummariesController(ISummaryService summaryService) : Contro
     {
         var result = await summaryService.ListForPaperAsync(id, cancellationToken);
         return Ok(result.Select(s => s.ToDto()).ToList());
+    }
+
+    [HttpGet("papers/{paperId:guid}/summaries/diff")]
+    [Authorize(Policy = PolicyNames.ReadAccess)]
+    [ProducesResponseType(typeof(SummaryDiffDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<SummaryDiffDto>> GetSummaryDiff(Guid paperId, Guid v1, Guid v2, CancellationToken cancellationToken)
+    {
+        var result = await summaryDiffService.ComputeDiffAsync(paperId, v1, v2, cancellationToken);
+        return Ok(result.ToDto());
     }
 
     [HttpPost("papers/{id:guid}/summaries")]
@@ -75,6 +89,63 @@ public sealed class SummariesController(ISummaryService summaryService) : Contro
     {
         await summaryService.DeleteAsync(summaryId, cancellationToken);
         return NoContent();
+    }
+
+    [HttpPost("papers/{paperId:guid}/summaries/ab-test")]
+    [Authorize(Policy = PolicyNames.EditAccess)]
+    [EnableRateLimiting(RateLimiterPolicyNames.Expensive)]
+    [ProducesResponseType(typeof(AbTestSessionDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<AbTestSessionDto>> CreateAbTest(Guid paperId, [FromBody] AutonomousResearchAgent.Api.Contracts.Summaries.CreateAbTestRequest request, CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var appRequest = request.ToApplicationModel();
+        var created = await summarizationService.CreateAbTestSessionAsync(appRequest with { PaperId = paperId }, userId, cancellationToken);
+        return CreatedAtAction(nameof(GetAbTestSession), new { sessionId = created.Id }, created.ToDto());
+    }
+
+    [HttpGet("summaries/ab-test/{sessionId:guid}")]
+    [Authorize(Policy = PolicyNames.ReadAccess)]
+    [ProducesResponseType(typeof(AbTestSessionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AbTestSessionDto>> GetAbTestSession(Guid sessionId, CancellationToken cancellationToken)
+    {
+        var result = await summarizationService.GetAbTestSessionAsync(sessionId, cancellationToken);
+        if (result == null)
+        {
+            return NotFound();
+        }
+        return Ok(result.ToDto());
+    }
+
+    [HttpGet("papers/{paperId:guid}/summaries/ab-test")]
+    [Authorize(Policy = PolicyNames.ReadAccess)]
+    [ProducesResponseType(typeof(IReadOnlyCollection<AbTestSessionDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyCollection<AbTestSessionDto>>> GetAbTestsForPaper(Guid paperId, CancellationToken cancellationToken)
+    {
+        var sessions = await summarizationService.GetAbTestSessionsForPaperAsync(paperId, cancellationToken);
+        return Ok(sessions.Select(s => s.ToDto()).ToList());
+    }
+
+    [HttpPost("summaries/ab-test/{sessionId:guid}/select/{summaryId:guid}")]
+    [Authorize(Policy = PolicyNames.EditAccess)]
+    [ProducesResponseType(typeof(AbTestSessionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AbTestSessionDto>> SelectAbTestResult(Guid sessionId, Guid summaryId, CancellationToken cancellationToken)
+    {
+        var result = await summarizationService.SelectAbTestResultAsync(sessionId, summaryId, cancellationToken);
+        if (result == null)
+        {
+            return NotFound();
+        }
+        return Ok(result.ToDto());
+    }
+
+    private Guid GetUserId()
+    {
+        var userIdClaim = User.FindFirst("user_id")?.Value;
+        if (!Guid.TryParse(userIdClaim, out var userId))
+            throw new UnauthorizedAccessException("User ID not found in token");
+        return userId;
     }
 }
 
