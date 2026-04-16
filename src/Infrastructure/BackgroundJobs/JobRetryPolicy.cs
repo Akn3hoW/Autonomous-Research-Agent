@@ -1,7 +1,7 @@
 using System.Text.Json;
 using AutonomousResearchAgent.Application.Jobs;
 
-namespace AutonomousResearchAgent.Workers;
+namespace AutonomousResearchAgent.Infrastructure.BackgroundJobs;
 
 public sealed class JobRetryPolicy
 {
@@ -66,7 +66,7 @@ public sealed class JobRetryPolicy
     {
         HttpRequestException httpEx when httpEx.StatusCode == System.Net.HttpStatusCode.TooManyRequests => "Rate limit exceeded (429)",
         HttpRequestException httpEx when httpEx.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable => "Service unavailable (503)",
-        HttpRequestException => "Network error",
+        HttpRequestException httpEx => "Network error",
         TaskCanceledException => "Request timeout",
         _ => "Transient error"
     };
@@ -77,4 +77,14 @@ public sealed class JobRetryPolicy
         maxDelay = MaxDelay,
         maxAttempts = MaxAttemptsValue
     });
+}
+
+public sealed record RetryPolicyData
+{
+    public int AttemptNumber { get; init; }
+    public string ExceptionType { get; init; } = string.Empty;
+    public string ExceptionMessage { get; init; } = string.Empty;
+    public int DelaySeconds { get; init; }
+    public bool ShouldRetry { get; init; }
+    public string Reason { get; init; } = string.Empty;
 }

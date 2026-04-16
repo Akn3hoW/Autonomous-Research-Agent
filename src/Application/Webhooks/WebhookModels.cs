@@ -9,14 +9,14 @@ public sealed record WebhookListItem(
 
 public sealed record WebhookDetail(
     Guid Id,
-    int UserId,
+    Guid UserId,
     string Url,
     IReadOnlyCollection<string> Events,
     bool IsActive,
     DateTimeOffset CreatedAt);
 
 public sealed record CreateWebhookCommand(
-    int UserId,
+    Guid UserId,
     string Url,
     IReadOnlyCollection<string> Events);
 

@@ -16,7 +16,7 @@ public sealed class WebhookService(
     IHttpClientFactory httpClientFactory,
     ILogger<WebhookService> logger) : IWebhookService
 {
-    public async Task<IReadOnlyCollection<WebhookListItem>> ListAsync(int userId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<WebhookListItem>> ListAsync(Guid userId, CancellationToken cancellationToken)
     {
         var webhooks = await dbContext.UserWebhooks
             .Where(w => w.UserId == userId)
@@ -63,7 +63,7 @@ public sealed class WebhookService(
             webhook.CreatedAt);
     }
 
-    public async Task DeleteAsync(Guid id, int userId, CancellationToken cancellationToken)
+    public async Task DeleteAsync(Guid id, Guid userId, CancellationToken cancellationToken)
     {
         var webhook = await dbContext.UserWebhooks
             .FirstOrDefaultAsync(w => w.Id == id && w.UserId == userId, cancellationToken)

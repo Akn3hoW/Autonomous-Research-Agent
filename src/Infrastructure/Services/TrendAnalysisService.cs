@@ -14,7 +14,7 @@ namespace AutonomousResearchAgent.Infrastructure.Services;
 public sealed class TrendAnalysisService(
     ApplicationDbContext dbContext,
     IJobService jobService,
-    OpenRouterChatClient openRouterChatClient,
+    IOpenRouterChatClient openRouterChatClient,
     ILogger<TrendAnalysisService> logger) : ITrendAnalysisService
 {
     private const string TopicExtractionSchema = """

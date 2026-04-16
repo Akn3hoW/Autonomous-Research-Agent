@@ -185,10 +185,10 @@ public static class ContractMappingExtensions
     public static AnalysisJobStatusDto ToDto(this AnalysisJobStatusModel model) =>
         new(model.JobId, model.Status.ToString(), model.ErrorMessage, model.Result?.ToDto());
 
-    public static SavedSearchQuery ToApplicationModel(this SavedSearchQueryRequest request, int userId) =>
+    public static SavedSearchQuery ToApplicationModel(this SavedSearchQueryRequest request, Guid userId) =>
         new(request.PageNumber, request.PageSize, userId, request.IsActive);
 
-    public static CreateSavedSearchCommand ToApplicationModel(this CreateSavedSearchRequest request, int userId) =>
+    public static CreateSavedSearchCommand ToApplicationModel(this CreateSavedSearchRequest request, Guid userId) =>
         new(userId, request.Query, request.Field, ParseEnum(request.Schedule, ScheduleType.Manual));
 
     public static UpdateSavedSearchCommand ToApplicationModel(this UpdateSavedSearchRequest request) =>
@@ -197,7 +197,7 @@ public static class ContractMappingExtensions
     public static SavedSearchDto ToDto(this SavedSearchModel model) =>
         new(model.Id, model.UserId, model.Query, model.Field, model.Schedule.ToString(), model.LastRunAt, model.ResultCount, model.IsActive, model.CreatedAt, model.UpdatedAt);
 
-    public static NotificationQuery ToApplicationModel(this NotificationQueryRequest request, int userId) =>
+    public static NotificationQuery ToApplicationModel(this NotificationQueryRequest request, Guid userId) =>
         new(request.PageNumber, request.PageSize, userId, request.IsRead);
 
     public static NotificationDto ToDto(this NotificationModel model) =>

@@ -11,6 +11,7 @@ public interface IJobService
     Task<JobModel> RetryAsync(Guid id, RetryJobCommand command, CancellationToken cancellationToken);
     Task<JobModel> UpdateRetryStatusAsync(Guid id, int retryCount, string retryPolicyJson, CancellationToken cancellationToken);
     Task<JobModel> UpdateStatusAsync(Guid id, JobStatus status, string? errorMessage, CancellationToken cancellationToken);
+    Task<JobModel> CancelAsync(Guid id, CancellationToken cancellationToken);
     Task DeleteAsync(Guid id, CancellationToken cancellationToken);
     Task<List<JobModel>> GetJobsByParentIdAsync(Guid parentId, CancellationToken cancellationToken);
 }

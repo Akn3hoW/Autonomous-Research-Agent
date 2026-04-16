@@ -32,7 +32,7 @@ public sealed record CollectionPaperDetail(
     DateTimeOffset AddedAt);
 
 public sealed record CreateCollectionCommand(
-    int UserId,
+    Guid UserId,
     string Name,
     string? Description,
     bool IsShared);

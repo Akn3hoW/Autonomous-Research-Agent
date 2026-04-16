@@ -2,6 +2,7 @@ using AutonomousResearchAgent.Api.Authorization;
 using AutonomousResearchAgent.Api.Contracts.Common;
 using AutonomousResearchAgent.Api.Contracts.Watchlist;
 using AutonomousResearchAgent.Api.Extensions;
+using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Watchlist;
 using AutonomousResearchAgent.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -23,8 +24,7 @@ public sealed class SavedSearchesController(
         CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        if (userId == null) return Unauthorized();
-        var result = await savedSearchService.ListAsync(request.ToApplicationModel(userId.Value), cancellationToken);
+        var result = await savedSearchService.ListAsync(request.ToApplicationModel(userId), cancellationToken);
         return Ok(result.ToPagedResponse(item => item.ToDto()));
     }
 
@@ -47,8 +47,7 @@ public sealed class SavedSearchesController(
         CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        if (userId == null) return Unauthorized();
-        var created = await savedSearchService.CreateAsync(request.ToApplicationModel(userId.Value), cancellationToken);
+        var created = await savedSearchService.CreateAsync(request.ToApplicationModel(userId), cancellationToken);
         return CreatedAtAction(nameof(GetSavedSearch), new { id = created.Id }, created.ToDto());
     }
 
@@ -94,9 +93,8 @@ public sealed class SavedSearchesController(
         CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        if (userId == null) return Unauthorized();
 
-        var digests = await digestService.GetDigestsForUserAsync(userId.Value, frequency, cancellationToken);
+        var digests = await digestService.GetDigestsForUserAsync(userId, frequency, cancellationToken);
         return Ok(digests.Select(d => d.ToDto()).ToList());
     }
 
@@ -116,11 +114,14 @@ public sealed class SavedSearchesController(
     public async Task<ActionResult<DigestDto>> GetLatestDigest([FromQuery] DigestFrequency frequency, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        if (userId == null) return Unauthorized();
 
-        var digest = await digestService.GetLatestDigestAsync(userId.Value, frequency, cancellationToken);
+        var digest = await digestService.GetLatestDigestAsync(userId, frequency, cancellationToken);
         return digest != null ? Ok(digest.ToDto()) : NotFound();
     }
 
-    private int? GetUserId() => User.GetUserId();
+    private Guid GetUserId()
+    {
+        var userId = User.GetUserGuid();
+        return userId ?? throw new AuthenticationException("User ID not found in token.");
+    }
 }

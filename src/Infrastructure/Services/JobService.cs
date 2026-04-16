@@ -142,4 +142,22 @@ public sealed class JobService(
         await dbContext.SaveChangesAsync(cancellationToken);
         return entity.ToModel();
     }
+
+    public async Task<JobModel> CancelAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var entity = await dbContext.Jobs.FirstOrDefaultAsync(j => j.Id == id, cancellationToken)
+            ?? throw new NotFoundException(nameof(Job), id);
+
+        if (entity.Status is JobStatus.Completed or JobStatus.Failed or JobStatus.Cancelled)
+        {
+            throw new InvalidStateException("Only queued or running jobs can be cancelled.");
+        }
+
+        entity.Status = JobStatus.Cancelled;
+        entity.ErrorMessage = "Job was cancelled by user.";
+        entity.CancellationRequestedAt = DateTimeOffset.UtcNow;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return entity.ToModel();
+    }
 }

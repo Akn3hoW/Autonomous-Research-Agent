@@ -2,7 +2,7 @@ namespace AutonomousResearchAgent.Application.ReadingSessions;
 
 public sealed record ReadingSessionModel(
     Guid Id,
-    int UserId,
+    Guid UserId,
     Guid PaperId,
     string PaperTitle,
     List<string> PaperAuthors,
@@ -17,7 +17,7 @@ public sealed record ReadingSessionModel(
     DateTimeOffset UpdatedAt);
 
 public sealed record CreateReadingSessionCommand(
-    int UserId,
+    Guid UserId,
     Guid PaperId);
 
 public sealed record UpdateReadingSessionCommand(
@@ -25,7 +25,7 @@ public sealed record UpdateReadingSessionCommand(
     string? Notes);
 
 public sealed record ReadingSessionQuery(
-    int UserId,
+    Guid UserId,
     string? Status,
     int PageNumber,
     int PageSize);

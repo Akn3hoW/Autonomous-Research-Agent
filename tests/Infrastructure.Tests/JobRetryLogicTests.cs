@@ -2,9 +2,9 @@ using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Jobs;
 using AutonomousResearchAgent.Domain.Entities;
 using AutonomousResearchAgent.Domain.Enums;
+using AutonomousResearchAgent.Infrastructure.BackgroundJobs;
 using AutonomousResearchAgent.Infrastructure.Persistence;
 using AutonomousResearchAgent.Infrastructure.Services;
-using AutonomousResearchAgent.Workers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -287,10 +287,7 @@ public sealed class JobRetryLogicTests
     {
         var policy = new JobRetryPolicy();
 
-        var result = policy.ShouldRetry(1, new HttpRequestException("Rate limit")
-        {
-            StatusCode = System.Net.HttpStatusCode.TooManyRequests
-        });
+        var result = policy.ShouldRetry(1, new HttpRequestException("Rate limit", null, System.Net.HttpStatusCode.TooManyRequests));
 
         Assert.True(result);
     }
@@ -300,10 +297,7 @@ public sealed class JobRetryLogicTests
     {
         var policy = new JobRetryPolicy();
 
-        var result = policy.ShouldRetry(1, new HttpRequestException("Service unavailable")
-        {
-            StatusCode = System.Net.HttpStatusCode.ServiceUnavailable
-        });
+        var result = policy.ShouldRetry(1, new HttpRequestException("Service unavailable", null, System.Net.HttpStatusCode.ServiceUnavailable));
 
         Assert.True(result);
     }
@@ -323,10 +317,7 @@ public sealed class JobRetryLogicTests
     {
         var policy = new JobRetryPolicy();
 
-        var exception = new HttpRequestException("Rate limit")
-        {
-            StatusCode = System.Net.HttpStatusCode.TooManyRequests
-        };
+        var exception = new HttpRequestException("Rate limit", null, System.Net.HttpStatusCode.TooManyRequests);
 
         Assert.True(policy.IsRateLimitException(exception));
     }
@@ -336,10 +327,7 @@ public sealed class JobRetryLogicTests
     {
         var policy = new JobRetryPolicy();
 
-        var exception = new HttpRequestException("Service unavailable")
-        {
-            StatusCode = System.Net.HttpStatusCode.ServiceUnavailable
-        };
+        var exception = new HttpRequestException("Service unavailable", null, System.Net.HttpStatusCode.ServiceUnavailable);
 
         Assert.True(policy.IsServiceUnavailableException(exception));
     }
@@ -357,10 +345,7 @@ public sealed class JobRetryLogicTests
     public void JobRetryPolicy_CreateRetryPolicyData_creates_valid_data()
     {
         var policy = new JobRetryPolicy();
-        var exception = new HttpRequestException("Rate limit")
-        {
-            StatusCode = System.Net.HttpStatusCode.TooManyRequests
-        };
+        var exception = new HttpRequestException("Rate limit", null, System.Net.HttpStatusCode.TooManyRequests);
         var delay = TimeSpan.FromSeconds(60);
 
         var result = policy.CreateRetryPolicyData(1, exception, delay);

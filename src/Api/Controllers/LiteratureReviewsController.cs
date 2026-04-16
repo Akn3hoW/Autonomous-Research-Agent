@@ -114,9 +114,9 @@ public sealed class LiteratureReviewsController(ILiteratureReviewService literat
         return File(pdfBytes, "application/pdf", $"literature_review_{id}.pdf");
     }
 
-    private int GetUserId()
+    private Guid GetUserId()
     {
-        var userId = User.GetUserId();
+        var userId = User.GetUserGuid();
         return userId ?? throw new AuthenticationException("User ID not found in token.");
     }
 }

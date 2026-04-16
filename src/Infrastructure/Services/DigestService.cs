@@ -12,7 +12,7 @@ namespace AutonomousResearchAgent.Infrastructure.Services;
 
 public sealed class DigestService(
     ApplicationDbContext dbContext,
-    OpenRouterChatClient openRouterChatClient,
+    IOpenRouterChatClient openRouterChatClient,
     ISemanticScholarClient semanticScholarClient,
     ILogger<DigestService> logger) : IDigestService
 {
@@ -43,7 +43,7 @@ public sealed class DigestService(
         return entity != null ? ToModel(entity) : null;
     }
 
-    public async Task<IReadOnlyList<DigestModel>> GetDigestsForUserAsync(int userId, DigestFrequency? frequency, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<DigestModel>> GetDigestsForUserAsync(Guid userId, DigestFrequency? frequency, CancellationToken cancellationToken)
     {
         var query = dbContext.Digests
             .AsNoTracking()
@@ -62,7 +62,7 @@ public sealed class DigestService(
         return entities.Select(ToModel).ToList();
     }
 
-    public async Task<DigestModel?> GetLatestDigestAsync(int userId, DigestFrequency frequency, CancellationToken cancellationToken)
+    public async Task<DigestModel?> GetLatestDigestAsync(Guid userId, DigestFrequency frequency, CancellationToken cancellationToken)
     {
         var entity = await dbContext.Digests
             .AsNoTracking()
@@ -73,7 +73,7 @@ public sealed class DigestService(
         return entity != null ? ToModel(entity) : null;
     }
 
-    public async Task<string> GenerateDigestContentAsync(int userId, DigestFrequency frequency, CancellationToken cancellationToken)
+    public async Task<string> GenerateDigestContentAsync(Guid userId, DigestFrequency frequency, CancellationToken cancellationToken)
     {
         var savedSearches = await dbContext.SavedSearches
             .AsNoTracking()

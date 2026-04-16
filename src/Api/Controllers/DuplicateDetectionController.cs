@@ -2,6 +2,7 @@ using AutonomousResearchAgent.Api.Authorization;
 using AutonomousResearchAgent.Api.Contracts.Common;
 using AutonomousResearchAgent.Api.Contracts.Papers;
 using AutonomousResearchAgent.Api.Extensions;
+using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Duplicates;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -45,7 +46,8 @@ public sealed class DuplicateDetectionController(IDuplicateDetectionService dupl
         [FromBody] ResolveDuplicateRequest request,
         CancellationToken cancellationToken)
     {
-        var userId = User.GetUserId();
+        var userId = User.GetUserGuid();
+        if (userId is null) throw new AuthenticationException("User ID not found in token.");
         await duplicateDetectionService.ResolveDuplicateAsync(
             id,
             request.IsDuplicate,
@@ -66,7 +68,8 @@ public sealed class DuplicateDetectionController(IDuplicateDetectionService dupl
         [FromBody] MergeDuplicateRequest request,
         CancellationToken cancellationToken)
     {
-        var userId = User.GetUserId();
+        var userId = User.GetUserGuid();
+        if (userId is null) throw new AuthenticationException("User ID not found in token.");
         await duplicateDetectionService.MergeDuplicatePapersAsync(
             request.KeepPaperId,
             request.MergeIntoPaperId,

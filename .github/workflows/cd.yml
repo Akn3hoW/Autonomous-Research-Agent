@@ -66,3 +66,15 @@ jobs:
         run: |
           echo "Production deployment ready"
           echo "API endpoint: https://${{ github.repository }}.ghcr.io/api:latest"
+
+      - name: Placeholder deployment step
+        run: |
+          echo "TODO: Add actual deployment steps here"
+          echo "This workflow is a placeholder for production deployment."
+          echo "Consider deploying to:"
+          echo "  - Kubernetes cluster"
+          echo "  - Azure Container Apps"
+          echo "  - AWS ECS"
+          echo "  - Google Cloud Run"
+          echo ""
+          echo "Required secrets should be configured in repository settings."

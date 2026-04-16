@@ -15,7 +15,7 @@ namespace AutonomousResearchAgent.Infrastructure.Services;
 public sealed class AnalysisService(
     ApplicationDbContext dbContext,
     IJobService jobService,
-    OpenRouterChatClient openRouterChatClient,
+    IOpenRouterChatClient openRouterChatClient,
     ISemanticScholarClient semanticScholarClient,
     ILogger<AnalysisService> logger) : IAnalysisService
 {

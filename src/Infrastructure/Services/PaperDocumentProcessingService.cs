@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.ComponentModel;
 using System.Diagnostics;
 using AutonomousResearchAgent.Application.Common;
+using AutonomousResearchAgent.Application.Documents;
 using AutonomousResearchAgent.Domain.Entities;
 using AutonomousResearchAgent.Domain.Enums;
 using AutonomousResearchAgent.Infrastructure.Persistence;
@@ -42,7 +43,7 @@ public sealed class PaperDocumentProcessingService(
     IHostEnvironment hostEnvironment,
     IOptions<DocumentProcessingOptions> options,
     ILogger<PaperDocumentProcessingService> logger,
-    IDocumentTextExtractor? textExtractor = null)
+    IDocumentTextExtractor? textExtractor = null) : IPaperDocumentProcessingService
 {
     private readonly DocumentProcessingOptions _options = options.Value;
     private readonly IDocumentTextExtractor _textExtractor = textExtractor ?? new LocalDocumentTextExtractor();

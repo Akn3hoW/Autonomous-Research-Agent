@@ -28,7 +28,7 @@ public sealed class PapersController(
     public async Task<ActionResult<PagedResponse<PaperListItemDto>>> GetPapers([FromQuery] PaperQueryRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var result = await paperService.ListAsync(request.ToApplicationModel(), userId is int i ? new Guid(i, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) : null, cancellationToken);
+        var result = await paperService.ListAsync(request.ToApplicationModel(), userId, cancellationToken);
         return Ok(result.ToPagedResponse(item => item.ToDto()));
     }
 
@@ -124,9 +124,9 @@ public sealed class PapersController(
         return NoContent();
     }
 
-    private int GetUserId()
+    private Guid GetUserId()
     {
-        var userId = User.GetUserId();
+        var userId = User.GetUserGuid();
         return userId ?? throw new AuthenticationException("User ID not found in token.");
     }
 }

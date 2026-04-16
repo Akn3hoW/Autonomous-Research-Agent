@@ -5,7 +5,7 @@ namespace AutonomousResearchAgent.Domain.Entities;
 
 public sealed class LiteratureReview : AuditableEntity
 {
-    public int UserId { get; set; }
+    public Guid UserId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ResearchQuestion { get; set; } = string.Empty;
     public string? ContentJson { get; set; }

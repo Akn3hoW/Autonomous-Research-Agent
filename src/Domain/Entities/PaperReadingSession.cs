@@ -5,7 +5,7 @@ namespace AutonomousResearchAgent.Domain.Entities;
 
 public sealed class PaperReadingSession : AuditableEntity
 {
-    public int UserId { get; set; }
+    public Guid UserId { get; set; }
     public Guid PaperId { get; set; }
     public ReadingStatus Status { get; set; } = ReadingStatus.ToRead;
     public string? Notes { get; set; }

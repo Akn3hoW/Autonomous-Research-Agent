@@ -2,7 +2,7 @@ namespace AutonomousResearchAgent.Api.Contracts.ReadingSessions;
 
 public sealed record ReadingSessionResponse(
     Guid Id,
-    int UserId,
+    Guid UserId,
     Guid PaperId,
     string PaperTitle,
     List<string> PaperAuthors,

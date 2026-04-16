@@ -85,45 +85,67 @@ public sealed class SearchService(
 
     private async Task<PagedResult<SearchResultModel>> SearchWithFullTextAsync(ApplicationDbContext dbContext, SearchRequestModel request, CancellationToken cancellationToken)
     {
-        var pattern = QueryHelpers.ToILikePattern(request.Query);
+        var query = request.Query.Trim();
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return new PagedResult<SearchResultModel>([], request.PageNumber, request.PageSize, 0);
+        }
 
-        var filteredQuery = dbContext.Papers
-            .AsNoTracking()
-            .Where(p =>
-                EF.Functions.ILike(p.Title, pattern) ||
-                (p.Abstract != null && EF.Functions.ILike(p.Abstract, pattern)) ||
-                p.Summaries.Any(s => s.SearchText != null && EF.Functions.ILike(s.SearchText, pattern)) ||
-                p.Documents.Any(d => d.ExtractedText != null && EF.Functions.ILike(d.ExtractedText, pattern)));
+        var tsquery = EscapeForTsQuery(query);
+        var offset = (request.PageNumber - 1) * request.PageSize;
 
-        var totalCount = await filteredQuery.LongCountAsync(cancellationToken);
+        await using var command = dbContext.Database.GetDbConnection().CreateCommand();
+        command.CommandText = $@"
+            SELECT p.""Id"", p.""Title"", p.""Abstract"", p.""Authors"", p.""Year"", p.""Venue"", ts_rank(p.""SearchVector"", to_tsquery(@query)) AS ""Rank""
+            FROM ""papers"" p
+            WHERE p.""SearchVector"" @@ to_tsquery(@query)
+            ORDER BY ""Rank"" DESC, p.""UpdatedAt"" DESC
+            OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY";
 
-        var rankedQuery = filteredQuery
-            .Select(p => new
-            {
-                Paper = p,
-                MatchedInTitle = EF.Functions.ILike(p.Title, pattern),
-                MatchedInAbstract = p.Abstract != null && EF.Functions.ILike(p.Abstract, pattern),
-                MatchedInSummary = p.Summaries.Any(s => s.SearchText != null && EF.Functions.ILike(s.SearchText, pattern)),
-                MatchedInDocument = p.Documents.Any(d => d.ExtractedText != null && EF.Functions.ILike(d.ExtractedText, pattern)),
-                Score = ComputeKeywordScore(
-                    EF.Functions.ILike(p.Title, pattern),
-                    p.Abstract != null && EF.Functions.ILike(p.Abstract, pattern),
-                    p.Summaries.Any(s => s.SearchText != null && EF.Functions.ILike(s.SearchText, pattern)),
-                    p.Documents.Any(d => d.ExtractedText != null && EF.Functions.ILike(d.ExtractedText, pattern)))
-            });
+        var queryParam = new NpgsqlParameter("query", tsquery);
+        var offsetParam = new NpgsqlParameter("offset", offset);
+        var pageSizeParam = new NpgsqlParameter("pageSize", request.PageSize);
+        command.Parameters.Add(queryParam);
+        command.Parameters.Add(offsetParam);
+        command.Parameters.Add(pageSizeParam);
 
-        var rankedPapers = await rankedQuery
-            .OrderByDescending(x => x.Score)
-            .ThenByDescending(x => x.Paper.UpdatedAt)
-            .Skip((request.PageNumber - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .ToListAsync(cancellationToken);
+        await dbContext.Database.OpenConnectionAsync(cancellationToken);
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
-        var items = rankedPapers
-            .Select(x => ToKeywordResult(x.Paper, request.Query, x.Score, x.MatchedInTitle, x.MatchedInAbstract, x.MatchedInSummary, x.MatchedInDocument))
-            .ToList();
+        var items = new List<SearchResultModel>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(new SearchResultModel(
+                reader.GetGuid(0),
+                reader.GetString(1),
+                reader.IsDBNull(2) ? null : reader.GetString(2),
+                reader.GetFieldValue<List<string>>(3).AsReadOnly(),
+                reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                reader.IsDBNull(5) ? null : reader.GetString(5),
+                reader.GetDouble(6),
+                "keyword",
+                new JsonObject()));
+        }
+        await reader.CloseAsync();
+
+        using var countCommand = dbContext.Database.GetDbConnection().CreateCommand();
+        countCommand.CommandText = $@"
+            SELECT COUNT(*) FROM ""papers"" p
+            WHERE p.""SearchVector"" @@ to_tsquery(@query)";
+        countCommand.Parameters.Add(new NpgsqlParameter("query", tsquery));
+        using var countReader = await countCommand.ExecuteReaderAsync(cancellationToken);
+        await countReader.ReadAsync(cancellationToken);
+        var totalCount = countReader.GetInt64(0);
+        await countReader.CloseAsync();
 
         return new PagedResult<SearchResultModel>(items, request.PageNumber, request.PageSize, totalCount);
+    }
+
+    private static string EscapeForTsQuery(string value)
+    {
+        var escaped = value.Replace("'", "''").Replace("\\", "\\\\");
+        var words = escaped.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return string.Join(" & ", words);
     }
 
     public async Task<PagedResult<SearchResultModel>> SemanticSearchAsync(SemanticSearchRequestModel request, CancellationToken cancellationToken)
@@ -215,10 +237,10 @@ public sealed class SearchService(
     {
         var operatorSymbol = distanceOperator switch
         {
-            VectorDistanceOperator.CosineDistance => "<@>",
+            VectorDistanceOperator.CosineDistance => "<=>",
             VectorDistanceOperator.L2Distance => "<->",
             VectorDistanceOperator.NegativeInnerProduct => "<#>",
-            _ => "<@>"
+            _ => "<=>"
         };
 
         await using var command = dbContext.Database.GetDbConnection().CreateCommand();

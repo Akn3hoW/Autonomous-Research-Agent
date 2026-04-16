@@ -7,7 +7,7 @@ namespace AutonomousResearchAgent.Domain.Entities;
 public sealed class Digest : AuditableEntity
 {
     [Required]
-    public int UserId { get; set; }
+    public Guid UserId { get; set; }
 
     [Required]
     public DigestFrequency Frequency { get; set; } = DigestFrequency.Weekly;

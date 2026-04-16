@@ -1,13 +1,16 @@
+using AutonomousResearchAgent.Api.Authorization;
 using AutonomousResearchAgent.Api.Contracts.Auth;
 using AutonomousResearchAgent.Api.Extensions;
 using AutonomousResearchAgent.Application.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
 [Route($"{ApiConstants.ApiPrefix}/auth")]
+[EnableRateLimiting(RateLimiterPolicyNames.Strict)]
 public sealed class AuthController(IAuthService authService) : ControllerBase
 {
     [HttpPost("login")]

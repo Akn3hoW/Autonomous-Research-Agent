@@ -88,6 +88,16 @@ public sealed class JobsController(IJobService jobService) : ControllerBase
         return Ok(result.ToDto());
     }
 
+    [HttpPost("{id:guid}/cancel")]
+    [Authorize(Policy = PolicyNames.EditAccess)]
+    [ProducesResponseType(typeof(JobDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<JobDto>> CancelJob(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await jobService.CancelAsync(id, cancellationToken);
+        return Ok(result.ToDto());
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = PolicyNames.EditAccess)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

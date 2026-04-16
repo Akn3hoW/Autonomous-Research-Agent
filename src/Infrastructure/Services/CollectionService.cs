@@ -18,7 +18,7 @@ public sealed class CollectionService : ICollectionService
         _db = db;
     }
 
-    public async Task<IReadOnlyCollection<CollectionListItem>> ListAsync(int userId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<CollectionListItem>> ListAsync(Guid userId, CancellationToken cancellationToken)
     {
         var collections = await _db.Collections
             .Where(c => c.UserId == userId)
@@ -38,7 +38,7 @@ public sealed class CollectionService : ICollectionService
         return collections;
     }
 
-    public async Task<CollectionDetail> GetByIdAsync(Guid id, int userId, CancellationToken cancellationToken)
+    public async Task<CollectionDetail> GetByIdAsync(Guid id, Guid userId, CancellationToken cancellationToken)
     {
         var collection = await _db.Collections
             .Include(c => c.CollectionPapers)
@@ -104,7 +104,7 @@ public sealed class CollectionService : ICollectionService
             collection.UpdatedAt);
     }
 
-    public async Task<CollectionListItem> UpdateAsync(Guid id, UpdateCollectionCommand command, int userId, CancellationToken cancellationToken)
+    public async Task<CollectionListItem> UpdateAsync(Guid id, UpdateCollectionCommand command, Guid userId, CancellationToken cancellationToken)
     {
         var collection = await _db.Collections
             .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId, cancellationToken)
@@ -132,7 +132,7 @@ public sealed class CollectionService : ICollectionService
             collection.UpdatedAt);
     }
 
-    public async Task DeleteAsync(Guid id, int userId, CancellationToken cancellationToken)
+    public async Task DeleteAsync(Guid id, Guid userId, CancellationToken cancellationToken)
     {
         var collection = await _db.Collections
             .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId, cancellationToken)
@@ -142,7 +142,7 @@ public sealed class CollectionService : ICollectionService
         await _db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task AddPaperAsync(Guid collectionId, AddPaperCommand command, int userId, CancellationToken cancellationToken)
+    public async Task AddPaperAsync(Guid collectionId, AddPaperCommand command, Guid userId, CancellationToken cancellationToken)
     {
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         try
@@ -182,7 +182,7 @@ public sealed class CollectionService : ICollectionService
         }
     }
 
-    public async Task RemovePaperAsync(Guid collectionId, RemovePaperCommand command, int userId, CancellationToken cancellationToken)
+    public async Task RemovePaperAsync(Guid collectionId, RemovePaperCommand command, Guid userId, CancellationToken cancellationToken)
     {
         var collection = await _db.Collections
             .FirstOrDefaultAsync(c => c.Id == collectionId && c.UserId == userId, cancellationToken)
@@ -196,7 +196,7 @@ public sealed class CollectionService : ICollectionService
         await _db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task ReorderPapersAsync(Guid collectionId, ReorderPapersCommand command, int userId, CancellationToken cancellationToken)
+    public async Task ReorderPapersAsync(Guid collectionId, ReorderPapersCommand command, Guid userId, CancellationToken cancellationToken)
     {
         var collection = await _db.Collections
             .Include(c => c.CollectionPapers)
@@ -214,7 +214,7 @@ public sealed class CollectionService : ICollectionService
         await _db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<byte[]> ExportAsync(Guid collectionId, int userId, CancellationToken cancellationToken)
+    public async Task<byte[]> ExportAsync(Guid collectionId, Guid userId, CancellationToken cancellationToken)
     {
         var collection = await _db.Collections
             .Include(c => c.CollectionPapers)
@@ -333,7 +333,7 @@ public sealed class CollectionService : ICollectionService
             papers);
     }
 
-    public async Task<string> GenerateShareTokenAsync(Guid collectionId, int userId, CancellationToken cancellationToken)
+    public async Task<string> GenerateShareTokenAsync(Guid collectionId, Guid userId, CancellationToken cancellationToken)
     {
         var collection = await _db.Collections
             .FirstOrDefaultAsync(c => c.Id == collectionId && c.UserId == userId, cancellationToken)
@@ -350,7 +350,7 @@ public sealed class CollectionService : ICollectionService
         return collection.ShareToken;
     }
 
-    public async Task RevokeShareTokenAsync(Guid collectionId, int userId, CancellationToken cancellationToken)
+    public async Task RevokeShareTokenAsync(Guid collectionId, Guid userId, CancellationToken cancellationToken)
     {
         var collection = await _db.Collections
             .FirstOrDefaultAsync(c => c.Id == collectionId && c.UserId == userId, cancellationToken)

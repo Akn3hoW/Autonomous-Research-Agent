@@ -5,7 +5,7 @@ namespace AutonomousResearchAgent.Domain.Entities;
 
 public sealed class SavedSearch : AuditableEntity
 {
-    public int UserId { get; set; }
+    public Guid UserId { get; set; }
     public string Query { get; set; } = string.Empty;
     public string? Field { get; set; }
     public ScheduleType Schedule { get; set; } = ScheduleType.Manual;

@@ -10,7 +10,7 @@ namespace AutonomousResearchAgent.Infrastructure.External.OpenRouter;
 public sealed class OpenRouterChatClient(
     HttpClient httpClient,
     IOptions<OpenRouterOptions> options,
-    ILogger<OpenRouterChatClient> logger)
+    ILogger<OpenRouterChatClient> logger) : IOpenRouterChatClient
 {
     private readonly OpenRouterOptions _options = options.Value;
 

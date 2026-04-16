@@ -59,11 +59,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: backend-build
+          path: .
 
       - name: Validate migrations
         run: |
-          cd src/Infrastructure
-          dotnet ef migrations validate --no-build
+          dotnet ef migrations validate --no-build --project src/Infrastructure --startup-project src/Api
 
   run-tests:
     runs-on: ubuntu-latest
@@ -94,7 +94,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'frontend'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: npm install
@@ -167,6 +168,24 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
         working-directory: tests/E2E
+
+      - name: Start API server
+        run: dotnet run --project src/Api --configuration Release &
+        env:
+          ConnectionStrings__Postgres: "Host=localhost;Port=5432;Database=ara_test;Username=postgres;Password=postgres"
+          ConnectionStrings__Redis: "Host=localhost;Port=6379;DefaultDatabase=0"
+          ASPNETCORE_ENVIRONMENT: Development
+
+      - name: Wait for API to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+              echo "API is ready"
+              break
+            fi
+            echo "Waiting for API... ($i/30)"
+            sleep 2
+          done
 
       - name: Run E2E tests
         run: npx playwright test

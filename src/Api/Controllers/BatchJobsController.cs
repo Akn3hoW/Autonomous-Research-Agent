@@ -26,7 +26,7 @@ public sealed class BatchJobsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<BatchJobDto>> CreateBatchJob([FromBody] BatchOperationRequest request, CancellationToken cancellationToken)
     {
-        var userId = User.GetUserId();
+        var userId = User.GetUserGuid();
         if (userId == null)
             return Unauthorized();
 
@@ -130,7 +130,7 @@ public sealed class BatchJobsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<BatchJobDto>> GetBatchJob(Guid id, CancellationToken cancellationToken)
     {
-        var userId = User.GetUserId();
+        var userId = User.GetUserGuid();
         if (userId == null)
             return Unauthorized();
         var batchJob = await batchJobService.GetByIdAsync(id, userId.Value, cancellationToken);

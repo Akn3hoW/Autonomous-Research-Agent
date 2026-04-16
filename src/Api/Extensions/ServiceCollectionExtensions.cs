@@ -2,12 +2,14 @@ using System.Text;
 using System.Threading.RateLimiting;
 using AutonomousResearchAgent.Api.Authorization;
 using AutonomousResearchAgent.Api.Contracts.Analysis;
+using AutonomousResearchAgent.Api.Services;
 using AutonomousResearchAgent.Api.Startup;
 using AutonomousResearchAgent.Api.Contracts.Jobs;
 using AutonomousResearchAgent.Api.Contracts.Papers;
 using AutonomousResearchAgent.Api.Contracts.Search;
 using AutonomousResearchAgent.Api.Contracts.Summaries;
 using AutonomousResearchAgent.Api.Middleware;
+using AutonomousResearchAgent.Application.Jobs;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -24,6 +26,7 @@ public static class ServiceCollectionExtensions
         services.AddProblemDetails();
 
         services.AddScoped<ValidationActionFilter>();
+        services.AddScoped<IJobNotificationService, JobNotificationService>();
 
         services.AddControllers(options =>
         {

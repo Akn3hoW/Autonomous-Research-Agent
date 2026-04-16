@@ -1,22 +1,35 @@
 using AutonomousResearchAgent.Application.Admin;
 using AutonomousResearchAgent.Application.Analysis;
+using AutonomousResearchAgent.Application.Annotations;
 using AutonomousResearchAgent.Application.Auth;
+using AutonomousResearchAgent.Application.Audit;
+using AutonomousResearchAgent.Application.BatchJobs;
 using AutonomousResearchAgent.Application.Cache;
 using AutonomousResearchAgent.Application.Citations;
 using AutonomousResearchAgent.Application.Chat;
+using AutonomousResearchAgent.Application.Clustering;
 using AutonomousResearchAgent.Application.Collections;
+using AutonomousResearchAgent.Application.Concepts;
 using AutonomousResearchAgent.Application.Documents;
 using AutonomousResearchAgent.Application.Duplicates;
+using AutonomousResearchAgent.Application.Export;
+using AutonomousResearchAgent.Application.Hypotheses;
 using AutonomousResearchAgent.Application.Jobs;
 using AutonomousResearchAgent.Application.LiteratureReviews;
 using AutonomousResearchAgent.Application.Papers;
+using AutonomousResearchAgent.Application.ReadingSessions;
+using AutonomousResearchAgent.Application.Recommendations;
 using AutonomousResearchAgent.Application.ResearchGoals;
 using AutonomousResearchAgent.Application.Search;
 using AutonomousResearchAgent.Application.Summaries;
+using AutonomousResearchAgent.Application.Trends;
 using AutonomousResearchAgent.Application.Users;
 using AutonomousResearchAgent.Application.Watchlist;
+using AutonomousResearchAgent.Application.Webhooks;
 using AutonomousResearchAgent.Infrastructure.BackgroundJobs;
 using AutonomousResearchAgent.Infrastructure.Configuration;
+using AutonomousResearchAgent.Infrastructure.External.Arxiv;
+using AutonomousResearchAgent.Infrastructure.External.CrossRef;
 using AutonomousResearchAgent.Infrastructure.External.OpenRouter;
 using AutonomousResearchAgent.Infrastructure.External.SemanticScholar;
 using AutonomousResearchAgent.Infrastructure.Persistence;
@@ -39,6 +52,8 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("Connection string 'Postgres' is not configured.");
 
         services.Configure<SemanticScholarOptions>(configuration.GetSection(SemanticScholarOptions.SectionName));
+        services.Configure<ArxivOptions>(configuration.GetSection(ArxivOptions.SectionName));
+        services.Configure<CrossRefOptions>(configuration.GetSection(CrossRefOptions.SectionName));
         services.Configure<OpenRouterOptions>(configuration.GetSection(OpenRouterOptions.SectionName));
         services.PostConfigure<OpenRouterOptions>(options =>
         {
@@ -100,6 +115,18 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAnalyticsService, AnalyticsService>();
         services.AddSingleton<ITokenService, TokenService>();
         services.AddScoped<IPromptVersionService, PromptVersionService>();
+        services.AddScoped<IAnnotationService, AnnotationService>();
+        services.AddScoped<IReadingSessionService, ReadingSessionService>();
+        services.AddScoped<IConceptService, ConceptService>();
+        services.AddScoped<IBatchJobService, BatchJobService>();
+        services.AddScoped<IExportService, ExportService>();
+        services.AddScoped<IWebhookService, WebhookService>();
+        services.AddScoped<IRecommendationService, RecommendationService>();
+        services.AddScoped<IDigestService, DigestService>();
+        services.AddScoped<IClusteringService, ClusteringService>();
+        services.AddScoped<IHypothesisService, HypothesisService>();
+        services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<ITrendAnalysisService, TrendAnalysisService>();
         services.AddHostedService<DatabaseJobWorker>();
 
         services.Configure<VisionPdfExtractorOptions>(configuration.GetSection(VisionPdfExtractorOptions.SectionName));
@@ -120,7 +147,23 @@ public static class ServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
         });
 
-        services.AddHttpClient<OpenRouterChatClient>((serviceProvider, client) =>
+        services.AddHttpClient<IArxivClient, ArxivClient>((serviceProvider, client) =>
+        {
+            var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ArxivOptions>>().Value;
+            client.BaseAddress = new Uri(options.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+        });
+
+        services.AddHttpClient<ICrossRefClient, CrossRefClient>((serviceProvider, client) =>
+        {
+            var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<CrossRefOptions>>().Value;
+            client.BaseAddress = new Uri(options.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+        });
+
+        services.AddScoped<ISummaryDiffService, SummaryDiffService>();
+
+        services.AddHttpClient<IOpenRouterChatClient, OpenRouterChatClient>((serviceProvider, client) =>
         {
             var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpenRouterOptions>>().Value;
             var baseUrl = options.BaseUrl.TrimEnd('/') + "/";

@@ -6,7 +6,7 @@ public interface IHypothesisService
 {
     Task<HypothesisResponse> CreateAsync(CreateHypothesisCommand command, CancellationToken cancellationToken);
     Task<HypothesisResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
-    Task<IReadOnlyList<HypothesisResponse>> GetAllByUserAsync(int userId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<HypothesisResponse>> GetAllByUserAsync(Guid userId, CancellationToken cancellationToken);
     Task<HypothesisResponse> UpdateAsync(Guid id, UpdateHypothesisCommand command, CancellationToken cancellationToken);
     Task<HypothesisResponse> UpdateStatusAsync(Guid id, UpdateHypothesisStatusCommand command, CancellationToken cancellationToken);
     Task DeleteAsync(Guid id, CancellationToken cancellationToken);
@@ -18,7 +18,7 @@ public interface IHypothesisService
 public sealed record CreateHypothesisCommand(
     string Title,
     string Description,
-    int UserId,
+    Guid UserId,
     List<HypothesisPaperInput>? InitialPapers);
 
 public sealed record UpdateHypothesisCommand(
@@ -44,7 +44,7 @@ public sealed record HypothesisResponse(
     string Title,
     string Description,
     HypothesisStatus Status,
-    int UserId,
+    Guid UserId,
     List<HypothesisPaperResponse> SupportingPapers,
     List<HypothesisPaperResponse> RefutingPapers,
     DateTimeOffset CreatedAt,

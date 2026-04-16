@@ -24,6 +24,8 @@ public sealed class ExceptionHandlingMiddleware(
     {
         logger.LogError(exception, "Unhandled exception while processing {Method} {Path}", context.Request.Method, context.Request.Path);
 
+        var isDevelopment = context.RequestServices?.GetService<IHostEnvironment>()?.IsDevelopment() ?? false;
+
         var (statusCode, title) = exception switch
         {
             NotFoundException => (StatusCodes.Status404NotFound, "Resource not found."),
@@ -36,7 +38,7 @@ public sealed class ExceptionHandlingMiddleware(
         };
 
         context.Response.StatusCode = statusCode;
-        context.Response.ContentType = "application/problem+json";
+        context.Response.ContentType = "application/json";
 
         if (exception is ValidationException validationException)
         {
@@ -50,7 +52,7 @@ public sealed class ExceptionHandlingMiddleware(
             {
                 Title = title,
                 Status = statusCode,
-                Detail = validationException.Message,
+                Detail = isDevelopment ? validationException.Message : "Validation failed.",
                 Instance = context.Request.Path
             };
 
@@ -62,7 +64,7 @@ public sealed class ExceptionHandlingMiddleware(
         {
             Title = title,
             Status = statusCode,
-            Detail = exception.Message,
+            Detail = isDevelopment ? exception.Message : "An unexpected error occurred.",
             Instance = context.Request.Path
         };
 

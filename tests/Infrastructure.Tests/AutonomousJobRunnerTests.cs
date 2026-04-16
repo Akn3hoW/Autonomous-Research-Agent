@@ -1,9 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using AutonomousResearchAgent.Application.Common;
+using AutonomousResearchAgent.Application.Documents;
 using AutonomousResearchAgent.Application.Duplicates;
 using AutonomousResearchAgent.Application.Jobs;
 using AutonomousResearchAgent.Application.Papers;
 using AutonomousResearchAgent.Application.Summaries;
+using AutonomousResearchAgent.Application.Trends;
 using AutonomousResearchAgent.Domain.Entities;
 using AutonomousResearchAgent.Domain.Enums;
 using AutonomousResearchAgent.Infrastructure.BackgroundJobs;
@@ -26,7 +29,7 @@ public sealed class AutonomousJobRunnerTests
     private readonly Mock<IPaperService> _paperServiceMock;
     private readonly Mock<ISummaryService> _summaryServiceMock;
     private readonly Mock<ISummarizationService> _summarizationServiceMock;
-    private readonly Mock<OpenRouterChatClient> _openRouterChatClientMock;
+    private readonly Mock<IOpenRouterChatClient> _openRouterChatClientMock;
     private readonly IOptions<OpenRouterOptions> _openRouterOptions;
     private readonly ILoggerFactory _loggerFactory;
 
@@ -35,7 +38,7 @@ public sealed class AutonomousJobRunnerTests
         _paperServiceMock = new Mock<IPaperService>();
         _summaryServiceMock = new Mock<ISummaryService>();
         _summarizationServiceMock = new Mock<ISummarizationService>();
-        _openRouterChatClientMock = new Mock<OpenRouterChatClient>();
+        _openRouterChatClientMock = new Mock<IOpenRouterChatClient>();
         _openRouterOptions = Options.Create(new OpenRouterOptions { ApiKey = "test-key", Model = "test-model" });
         _loggerFactory = LoggerFactory.Create(b => b.AddConsole());
     }
@@ -50,12 +53,7 @@ public sealed class AutonomousJobRunnerTests
 
     private AutonomousJobRunner CreateRunner(ApplicationDbContext dbContext)
     {
-        var paperDocumentProcessingService = new Mock<PaperDocumentProcessingService>(
-            dbContext,
-            Mock.Of<IHttpClientFactory>(),
-            Mock.Of<IHostEnvironment>(),
-            Options.Create(new DocumentProcessingOptions { StorageRoot = "/tmp" }),
-            NullLogger<PaperDocumentProcessingService>.Instance);
+        var paperDocumentProcessingService = new Mock<IPaperDocumentProcessingService>();
 
         paperDocumentProcessingService
             .Setup(s => s.ProcessAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
@@ -73,6 +71,7 @@ public sealed class AutonomousJobRunnerTests
         var mockEmbeddingIndexingService = new Mock<IEmbeddingIndexingService>();
         var mockDuplicateDetectionService = new Mock<IDuplicateDetectionService>();
         var mockSemanticScholarClient = new Mock<ISemanticScholarClient>();
+        var mockTrendAnalysisService = new Mock<ITrendAnalysisService>();
 
         return new AutonomousJobRunner(
             dbContext,
@@ -83,11 +82,12 @@ public sealed class AutonomousJobRunnerTests
             mockTextChunkingService.Object,
             mockEmbeddingIndexingService.Object,
             mockDuplicateDetectionService.Object,
-            mockJobService.Object,
             _openRouterChatClientMock.Object,
             mockSemanticScholarClient.Object,
             _openRouterOptions,
-            _loggerFactory);
+            Mock.Of<IOptions<SummaryOptions>>(),
+            _loggerFactory,
+            mockTrendAnalysisService.Object);
     }
 
     [Fact]

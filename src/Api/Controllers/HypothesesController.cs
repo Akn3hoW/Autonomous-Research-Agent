@@ -1,5 +1,6 @@
 using AutonomousResearchAgent.Api.Authorization;
 using AutonomousResearchAgent.Api.Extensions;
+using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Hypotheses;
 using AutonomousResearchAgent.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -17,10 +18,8 @@ public sealed class HypothesesController(IHypothesisService hypothesisService) :
     [ProducesResponseType(typeof(IReadOnlyList<HypothesisResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<HypothesisResponse>>> GetHypotheses(CancellationToken cancellationToken)
     {
-        var userId = User.GetUserId();
-        if (userId is null)
-            return Unauthorized();
-        var results = await hypothesisService.GetAllByUserAsync(userId.Value, cancellationToken);
+        var userId = GetUserId();
+        var results = await hypothesisService.GetAllByUserAsync(userId, cancellationToken);
         return Ok(results);
     }
 
@@ -42,13 +41,11 @@ public sealed class HypothesesController(IHypothesisService hypothesisService) :
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<HypothesisResponse>> CreateHypothesis([FromBody] CreateHypothesisRequest request, CancellationToken cancellationToken)
     {
-        var userId = User.GetUserId();
-        if (userId is null)
-            return Unauthorized();
+        var userId = GetUserId();
         var command = new CreateHypothesisCommand(
             request.Title,
             request.Description,
-            userId.Value,
+            userId,
             request.InitialPapers?.Select(p => new Application.Hypotheses.HypothesisPaperInput(p.PaperId, ParseEvidenceType(p.EvidenceType), p.EvidenceText)).ToList());
         var created = await hypothesisService.CreateAsync(command, cancellationToken);
         return CreatedAtAction(nameof(GetHypothesis), new { id = created.Id }, created);
@@ -61,13 +58,11 @@ public sealed class HypothesesController(IHypothesisService hypothesisService) :
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<HypothesisResponse>> UpdateHypothesis(Guid id, [FromBody] UpdateHypothesisRequest request, CancellationToken cancellationToken)
     {
-        var userId = User.GetUserId();
-        if (userId is null)
-            return Unauthorized();
+        var userId = GetUserId();
         var existing = await hypothesisService.GetByIdAsync(id, cancellationToken);
         if (existing == null)
             return NotFound();
-        if (existing.UserId != userId.Value)
+        if (existing.UserId != userId)
             return Forbid();
         var command = new UpdateHypothesisCommand(request.Title, request.Description);
         var updated = await hypothesisService.UpdateAsync(id, command, cancellationToken);
@@ -93,13 +88,11 @@ public sealed class HypothesesController(IHypothesisService hypothesisService) :
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> DeleteHypothesis(Guid id, CancellationToken cancellationToken)
     {
-        var userId = User.GetUserId();
-        if (userId is null)
-            return Unauthorized();
+        var userId = GetUserId();
         var existing = await hypothesisService.GetByIdAsync(id, cancellationToken);
         if (existing == null)
             return NotFound();
-        if (existing.UserId != userId.Value)
+        if (existing.UserId != userId)
             return Forbid();
         await hypothesisService.DeleteAsync(id, cancellationToken);
         return NoContent();
@@ -144,6 +137,12 @@ public sealed class HypothesesController(IHypothesisService hypothesisService) :
             "refuting" => EvidenceType.Refuting,
             _ => EvidenceType.Supporting
         };
+    }
+
+    private Guid GetUserId()
+    {
+        var userId = User.GetUserGuid();
+        return userId ?? throw new AuthenticationException("User ID not found in token.");
     }
 }
 

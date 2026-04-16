@@ -99,7 +99,7 @@ public sealed class DuplicateDetectionService(
         return new DuplicatesResult(pairs, (int)totalCount, (int)totalCount);
     }
 
-    public async Task ResolveDuplicateAsync(Guid duplicateId, bool isDuplicate, Guid? mergedIntoPaperId, string? notes, int? reviewedByUserId, CancellationToken cancellationToken = default)
+    public async Task ResolveDuplicateAsync(Guid duplicateId, bool isDuplicate, Guid? mergedIntoPaperId, string? notes, Guid? reviewedByUserId, CancellationToken cancellationToken = default)
     {
         var duplicate = await dbContext.PotentialDuplicates.FindAsync(new object[] { duplicateId }, cancellationToken)
             ?? throw new NotFoundException(nameof(PotentialDuplicate), duplicateId);
@@ -118,7 +118,7 @@ public sealed class DuplicateDetectionService(
         logger.LogInformation("Resolved duplicate pair {DuplicateId} as {Status}", duplicateId, duplicate.Status);
     }
 
-    public async Task MergeDuplicatePapersAsync(Guid keepPaperId, Guid mergeIntoPaperId, string? notes, int? reviewedByUserId, CancellationToken cancellationToken = default)
+    public async Task MergeDuplicatePapersAsync(Guid keepPaperId, Guid mergeIntoPaperId, string? notes, Guid? reviewedByUserId, CancellationToken cancellationToken = default)
     {
         var duplicate = await dbContext.PotentialDuplicates
             .FirstOrDefaultAsync(d =>

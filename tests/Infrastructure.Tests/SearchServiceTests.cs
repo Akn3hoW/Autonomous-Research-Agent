@@ -127,7 +127,7 @@ public sealed class SearchServiceTests
         Assert.Equal(3, result.TotalCount);
 
         var topHighlights = Assert.IsType<System.Text.Json.Nodes.JsonObject>(result.Items.First().Highlights);
-        var secondHighlights = Assert.IsType<System.Text.Json.Nodes.JsonObject>(result.Items[1].Highlights);
+        var secondHighlights = Assert.IsType<System.Text.Json.Nodes.JsonObject>(result.Items.ElementAt(1).Highlights);
 
         var topKeywordRrf = topHighlights["keywordRrfScore"]?.GetValue<double>() ?? 0;
         var secondKeywordRrf = secondHighlights["keywordRrfScore"]?.GetValue<double>() ?? 0;

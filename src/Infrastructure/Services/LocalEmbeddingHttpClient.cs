@@ -5,15 +5,33 @@ using AutonomousResearchAgent.Application.Search;
 using AutonomousResearchAgent.Domain.Enums;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Polly;
+using Polly.CircuitBreaker;
 
 namespace AutonomousResearchAgent.Infrastructure.Services;
 
-public sealed class LocalEmbeddingHttpClient(
-    HttpClient httpClient,
-    IOptions<LocalEmbeddingOptions> options,
-    ILogger<LocalEmbeddingHttpClient> logger) : ILocalEmbeddingClient, IEmbeddingService
+public sealed class LocalEmbeddingHttpClient : ILocalEmbeddingClient, IEmbeddingService
 {
-    private readonly LocalEmbeddingOptions _options = options.Value;
+    private readonly HttpClient _httpClient;
+    private readonly LocalEmbeddingOptions _options;
+    private readonly ILogger<LocalEmbeddingHttpClient> _logger;
+
+    private static readonly Func<AsyncCircuitBreakerPolicy<HttpResponseMessage>> CircuitBreakerFactory = () => Policy<HttpResponseMessage>
+        .Handle<HttpRequestException>()
+        .OrResult(r => !r.IsSuccessStatusCode)
+        .CircuitBreakerAsync(
+            handledEventsAllowedBeforeBreaking: 3,
+            durationOfBreak: TimeSpan.FromSeconds(30),
+            onBreak: (_, _) => Console.WriteLine("Embedding service circuit breaker opened"),
+            onReset: () => Console.WriteLine("Embedding service circuit breaker reset"),
+            onHalfOpen: () => Console.WriteLine("Embedding service circuit breaker half-open"));
+
+    public LocalEmbeddingHttpClient(HttpClient httpClient, IOptions<LocalEmbeddingOptions> options, ILogger<LocalEmbeddingHttpClient> logger)
+    {
+        _httpClient = httpClient;
+        _options = options.Value;
+        _logger = logger;
+    }
 
     public async Task<float[]> GenerateEmbeddingAsync(string content, CancellationToken cancellationToken)
         => await GenerateEmbeddingInternalAsync(content, "document", cancellationToken);
@@ -41,13 +59,14 @@ public sealed class LocalEmbeddingHttpClient(
             })
         };
 
+        var circuitBreaker = CircuitBreakerFactory();
         try
         {
-            using var response = await httpClient.SendAsync(request, cancellationToken);
+            using var response = await circuitBreaker.ExecuteAsync(() => _httpClient.SendAsync(request, cancellationToken));
             var payload = await response.Content.ReadAsStringAsync(cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogError("Local embedding service returned {StatusCode}. Body: {Body}", response.StatusCode, payload);
+                _logger.LogError("Local embedding service returned {StatusCode}. Body: {Body}", response.StatusCode, payload);
                 response.EnsureSuccessStatusCode();
             }
 
@@ -55,17 +74,24 @@ public sealed class LocalEmbeddingHttpClient(
             ValidateDimensions(vector);
             return vector;
         }
+        catch (BrokenCircuitException)
+        {
+            _logger.LogWarning("Embedding service circuit breaker is open, returning empty result.");
+            return EmptyVector();
+        }
         catch (HttpRequestException ex)
         {
-            logger.LogError(ex, "Local embedding request failed.");
-            throw new ExternalDependencyException("Local embedding request failed.", ex);
+            _logger.LogWarning(ex, "Local embedding request failed, returning empty result.");
+            return EmptyVector();
         }
         catch (JsonException ex)
         {
-            logger.LogError(ex, "Local embedding service returned an invalid payload.");
-            throw new ExternalDependencyException("Local embedding service returned an invalid payload.", ex);
+            _logger.LogWarning(ex, "Local embedding service returned an invalid payload, returning empty result.");
+            return EmptyVector();
         }
     }
+
+    private float[] EmptyVector() => new float[_options.VectorDimensions > 0 ? _options.VectorDimensions : 768];
 
     private static float[] ParseEmbedding(string payload)
     {
@@ -101,7 +127,7 @@ public sealed class LocalEmbeddingHttpClient(
             return;
         }
 
-        logger.LogError(
+        _logger.LogError(
             "Local embedding service returned vector with {ActualDimensions} dimensions, expected {ExpectedDimensions}.",
             vector.Length,
             _options.VectorDimensions);

@@ -15,7 +15,7 @@ namespace AutonomousResearchAgent.Infrastructure.Services;
 
 public sealed class OpenRouterSummarizationService(
     ApplicationDbContext dbContext,
-    OpenRouterChatClient openRouterChatClient,
+    IOpenRouterChatClient openRouterChatClient,
     IOptions<OpenRouterOptions> options,
     ILogger<OpenRouterSummarizationService> logger) : ISummarizationService
 {

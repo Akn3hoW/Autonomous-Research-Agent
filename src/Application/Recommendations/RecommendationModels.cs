@@ -12,7 +12,7 @@ public sealed record PaperRecommendationModel(
     DateTimeOffset CreatedAt);
 
 public sealed record RecommendationQuery(
-    int UserId,
+    Guid UserId,
     int PageNumber,
     int PageSize,
     int MaxRecommendations = 50);

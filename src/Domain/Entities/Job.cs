@@ -29,6 +29,10 @@ public sealed class Job : AuditableEntity
     [Column(TypeName = "jsonb")]
     public string? RetryPolicyJson { get; set; }
 
+    public DateTimeOffset? CancellationRequestedAt { get; set; }
+
+    public int? TimeoutSeconds { get; set; }
+
     [Column(TypeName = "jsonb")]
     public string? DependsOnJobIds { get; set; }
 

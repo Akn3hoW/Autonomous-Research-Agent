@@ -3,10 +3,12 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AutonomousResearchAgent.Application.Common;
+using AutonomousResearchAgent.Application.Documents;
 using AutonomousResearchAgent.Application.Duplicates;
 using AutonomousResearchAgent.Application.Jobs;
 using AutonomousResearchAgent.Application.Papers;
 using AutonomousResearchAgent.Application.Summaries;
+using AutonomousResearchAgent.Application.Trends;
 using AutonomousResearchAgent.Domain.Entities;
 using AutonomousResearchAgent.Domain.Enums;
 using AutonomousResearchAgent.Infrastructure.External.OpenRouter;
@@ -59,21 +61,20 @@ public sealed class AutonomousJobRunner(
     IPaperService paperService,
     ISummaryService summaryService,
     ISummarizationService summarizationService,
-    PaperDocumentProcessingService paperDocumentProcessingService,
+    IPaperDocumentProcessingService paperDocumentProcessingService,
     ITextChunkingService textChunkingService,
     IEmbeddingIndexingService embeddingIndexingService,
     IDuplicateDetectionService duplicateDetectionService,
-    IJobService jobService,
-    OpenRouterChatClient openRouterChatClient,
+    IOpenRouterChatClient openRouterChatClient,
     ISemanticScholarClient semanticScholarClient,
     IOptions<OpenRouterOptions> options,
     IOptions<SummaryOptions> summaryOptions,
-    ILoggerFactory loggerFactory) : IJobRunner
+    ILoggerFactory loggerFactory,
+    ITrendAnalysisService trendAnalysisService) : IJobRunner
 {
     private readonly OpenRouterOptions _options = options.Value;
     private readonly SummaryOptions _summaryOptions = summaryOptions.Value;
     private readonly ILogger<AutonomousJobRunner> _logger = loggerFactory.CreateLogger<AutonomousJobRunner>();
-    private readonly ILogger<TrendAnalysisService> _trendAnalysisLogger = loggerFactory.CreateLogger<TrendAnalysisService>();
     private static readonly ActivitySource ActivitySource = new("AutonomousJobRunner");
 
     /// <summary>
@@ -130,6 +131,15 @@ public sealed class AutonomousJobRunner(
                     break;
                 case JobType.WatchlistPolling:
                     await RunWatchlistPollingAsync(job, cancellationToken);
+                    break;
+                case JobType.GenerateEmbeddings:
+                    await RunGenerateEmbeddingsAsync(job, cancellationToken);
+                    break;
+                case JobType.GenerateClusterMap:
+                    await RunGenerateClusterMapAsync(job, cancellationToken);
+                    break;
+                case JobType.ExtractConcepts:
+                    await RunExtractConceptsAsync(job, cancellationToken);
                     break;
                 default:
                     throw new InvalidOperationException($"Unsupported job type '{job.Type}'.");
@@ -372,11 +382,7 @@ confidence: number
             t.EndYear == endYear,
             cancellationToken);
 
-        var response = await new TrendAnalysisService(
-            dbContext,
-            jobService,
-            openRouterChatClient,
-            _trendAnalysisLogger).GetTrendsAsync(request, cancellationToken);
+        var response = await trendAnalysisService.GetTrendsAsync(request, cancellationToken);
 
         if (result is null)
         {
@@ -997,4 +1003,50 @@ Types must be exactly: Method, Dataset, Metric, or Model
     private static JsonObject ParsePayload(Job job) =>
         JsonNode.Parse(job.PayloadJson)?.AsObject()
         ?? throw new InvalidOperationException($"Job {job.Id} has an invalid payload.");
+
+    private async Task RunGenerateEmbeddingsAsync(Job job, CancellationToken cancellationToken)
+    {
+        job.Status = JobStatus.Running;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var papersWithoutEmbeddings = await dbContext.Papers
+            .AsNoTracking()
+            .Where(p => p.Status == PaperStatus.Ready && !dbContext.PaperEmbeddings.Any(e => e.PaperId == p.Id && e.EmbeddingType == EmbeddingType.PaperAbstract))
+            .ToListAsync(cancellationToken);
+
+        if (papersWithoutEmbeddings.Count == 0)
+        {
+            job.Status = JobStatus.Completed;
+            job.ResultJson = JsonSerializer.SerializeToNode(new { message = "No papers need embedding generation", count = 0 })?.ToJsonString();
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        int successCount = 0;
+        int failCount = 0;
+
+        foreach (var paper in papersWithoutEmbeddings)
+        {
+            try
+            {
+                await embeddingIndexingService.UpsertPaperAbstractAsync(paper, cancellationToken);
+                successCount++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to generate embedding for paper {PaperId}", paper.Id);
+                failCount++;
+            }
+        }
+
+        job.Status = JobStatus.Completed;
+        job.ResultJson = JsonSerializer.SerializeToNode(new
+        {
+            processed = papersWithoutEmbeddings.Count,
+            succeeded = successCount,
+            failed = failCount,
+            completedAt = DateTimeOffset.UtcNow
+        })?.ToJsonString();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

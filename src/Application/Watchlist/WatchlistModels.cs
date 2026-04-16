@@ -4,7 +4,7 @@ namespace AutonomousResearchAgent.Application.Watchlist;
 
 public sealed record SavedSearchModel(
     Guid Id,
-    int UserId,
+    Guid UserId,
     string Query,
     string? Field,
     ScheduleType Schedule,
@@ -17,11 +17,11 @@ public sealed record SavedSearchModel(
 public sealed record SavedSearchQuery(
     int PageNumber = 1,
     int PageSize = 25,
-    int? UserId = null,
+    Guid? UserId = null,
     bool? IsActive = null);
 
 public sealed record CreateSavedSearchCommand(
-    int UserId,
+    Guid UserId,
     string Query,
     string? Field,
     ScheduleType Schedule);
@@ -34,7 +34,7 @@ public sealed record UpdateSavedSearchCommand(
 
 public sealed record NotificationModel(
     Guid Id,
-    int UserId,
+    Guid UserId,
     string Title,
     string Message,
     string? LinkUrl,
@@ -44,7 +44,7 @@ public sealed record NotificationModel(
 public sealed record NotificationQuery(
     int PageNumber = 1,
     int PageSize = 25,
-    int? UserId = null,
+    Guid? UserId = null,
     bool? IsRead = null);
 
 public sealed record RunSavedSearchResult(
@@ -53,7 +53,7 @@ public sealed record RunSavedSearchResult(
 
 public sealed record DigestModel(
     Guid Id,
-    int UserId,
+    Guid UserId,
     DigestFrequency Frequency,
     string Topic,
     string Content,
@@ -61,7 +61,7 @@ public sealed record DigestModel(
     DateTimeOffset CreatedAt);
 
 public sealed record CreateDigestCommand(
-    int UserId,
+    Guid UserId,
     DigestFrequency Frequency,
     string Topic,
     string Content,

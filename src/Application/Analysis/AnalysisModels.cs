@@ -128,7 +128,7 @@ public sealed record ChunkCitation(
 
 public sealed record DigestModel(
     Guid Id,
-    int UserId,
+    Guid UserId,
     DigestFrequency Frequency,
     string Topic,
     string Content,
@@ -136,7 +136,7 @@ public sealed record DigestModel(
     DateTimeOffset CreatedAt);
 
 public sealed record CreateDigestCommand(
-    int UserId,
+    Guid UserId,
     DigestFrequency Frequency,
     string Topic,
     string Content,

@@ -6,7 +6,7 @@ namespace AutonomousResearchAgent.Domain.Entities;
 
 public sealed class Paper : AuditableEntity
 {
-    public int? UserId { get; set; }
+    public Guid? UserId { get; set; }
 
     public string? SemanticScholarId { get; set; }
     public string? Doi { get; set; }

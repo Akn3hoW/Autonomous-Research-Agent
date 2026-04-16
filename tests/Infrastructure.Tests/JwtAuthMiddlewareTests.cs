@@ -170,7 +170,7 @@ public sealed class JwtAuthMiddlewareTests
         using var reader = new StreamReader(context.Response.Body);
         var body = await reader.ReadToEndAsync();
 
-        Assert.Contains("application/problem+json", context.Response.ContentType);
+        Assert.Contains("application/json", context.Response.ContentType);
         Assert.Contains("Resource not found", body);
     }
 }

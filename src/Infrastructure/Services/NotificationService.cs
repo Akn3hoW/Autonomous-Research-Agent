@@ -50,7 +50,7 @@ public sealed class NotificationService(
         return ToModel(entity);
     }
 
-    public async Task<int> MarkAllAsReadAsync(int userId, CancellationToken cancellationToken)
+    public async Task<int> MarkAllAsReadAsync(Guid userId, CancellationToken cancellationToken)
     {
         var count = await dbContext.Notifications
             .Where(n => n.UserId == userId && !n.IsRead)
@@ -60,7 +60,7 @@ public sealed class NotificationService(
         return count;
     }
 
-    public async Task<int> GetUnreadCountAsync(int userId, CancellationToken cancellationToken)
+    public async Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken)
     {
         return await dbContext.Notifications
             .CountAsync(n => n.UserId == userId && !n.IsRead, cancellationToken);

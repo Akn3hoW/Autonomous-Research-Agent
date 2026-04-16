@@ -2,7 +2,7 @@ namespace AutonomousResearchAgent.Api.Contracts.Watchlist;
 
 public sealed record SavedSearchDto(
     Guid Id,
-    int UserId,
+    Guid UserId,
     string Query,
     string? Field,
     string Schedule,
@@ -40,7 +40,7 @@ public sealed record RunSavedSearchResponse(
 
 public sealed record NotificationDto(
     Guid Id,
-    int UserId,
+    Guid UserId,
     string Title,
     string Message,
     string? LinkUrl,
@@ -60,7 +60,7 @@ public sealed record MarkAllReadResponse(int MarkedCount);
 
 public sealed record DigestDto(
     Guid Id,
-    int UserId,
+    Guid UserId,
     string Frequency,
     string Topic,
     string Content,

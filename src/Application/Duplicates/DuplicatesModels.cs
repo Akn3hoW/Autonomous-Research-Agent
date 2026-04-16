@@ -11,7 +11,7 @@ public sealed record DuplicatePairModel(
     string PaperBTitle,
     double SimilarityScore,
     DuplicateReviewStatus Status,
-    int? ReviewedByUserId,
+    Guid? ReviewedByUserId,
     DateTimeOffset? ReviewedAt,
     string? Notes,
     DateTimeOffset CreatedAt);
@@ -30,10 +30,10 @@ public sealed record ResolveDuplicateCommand(
     bool IsDuplicate,
     Guid? MergedIntoPaperId,
     string? Notes,
-    int? ReviewedByUserId);
+    Guid? ReviewedByUserId);
 
 public sealed record MergeDuplicateCommand(
     Guid KeepPaperId,
     Guid MergeIntoPaperId,
     string? Notes,
-    int? ReviewedByUserId);
+    Guid? ReviewedByUserId);

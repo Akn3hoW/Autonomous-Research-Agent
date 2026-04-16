@@ -22,16 +22,17 @@ public sealed class RecommendationsController(IRecommendationService recommendat
         CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        if (userId is null)
-            return Unauthorized();
-
-        var query = new RecommendationQuery(userId.Value, pageNumber, pageSize);
+        var query = new RecommendationQuery(userId, pageNumber, pageSize);
         var result = await recommendationService.GetRecommendationsAsync(query, cancellationToken);
 
         return Ok(result.ToPagedResponse(MapToResponse));
     }
 
-    private int? GetUserId() => User.GetUserId();
+    private Guid GetUserId()
+    {
+        var userId = User.GetUserGuid();
+        return userId ?? throw new AuthenticationException("User ID not found in token.");
+    }
 
     private static PaperRecommendationResponse MapToResponse(PaperRecommendationModel model) =>
         new(

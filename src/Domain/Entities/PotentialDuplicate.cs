@@ -9,7 +9,7 @@ public sealed class PotentialDuplicate : AuditableEntity
     public Guid PaperBId { get; set; }
     public double SimilarityScore { get; set; }
     public DuplicateReviewStatus Status { get; set; } = DuplicateReviewStatus.Pending;
-    public int? ReviewedByUserId { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
     public DateTimeOffset? ReviewedAt { get; set; }
     public string? Notes { get; set; }
 

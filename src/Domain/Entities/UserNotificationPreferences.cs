@@ -7,7 +7,7 @@ namespace AutonomousResearchAgent.Domain.Entities;
 public sealed class UserNotificationPreferences : AuditableEntity
 {
     [Required]
-    public int UserId { get; set; }
+    public Guid UserId { get; set; }
 
     [Required]
     [MaxLength(256)]

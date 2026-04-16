@@ -31,7 +31,7 @@ public sealed class BatchJobService(
         return entity.ToModel();
     }
 
-    public async Task<BatchJobModel> GetByIdAsync(Guid id, int userId, CancellationToken cancellationToken)
+    public async Task<BatchJobModel> GetByIdAsync(Guid id, Guid userId, CancellationToken cancellationToken)
     {
         var entity = await dbContext.BatchJobs
             .AsNoTracking()

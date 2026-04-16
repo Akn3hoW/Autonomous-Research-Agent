@@ -59,7 +59,7 @@ public sealed class HypothesisService(
         return entity == null ? null : ToResponse(entity);
     }
 
-    public async Task<IReadOnlyList<HypothesisResponse>> GetAllByUserAsync(int userId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<HypothesisResponse>> GetAllByUserAsync(Guid userId, CancellationToken cancellationToken)
     {
         var entities = await dbContext.Hypotheses
             .AsNoTracking()
@@ -283,11 +283,11 @@ public sealed class HypothesisService(
         return hypotheses;
     }
 
-    private static int GetUserIdFromAnalysis(AnalysisResult analysisResult)
+    private static Guid GetUserIdFromAnalysis(AnalysisResult analysisResult)
     {
-        if (int.TryParse(analysisResult.CreatedBy, out var userId))
+        if (Guid.TryParse(analysisResult.CreatedBy, out var userId))
             return userId;
-        return 0;
+        return Guid.Empty;
     }
 
     private static List<string> ParseEvidenceJson(string? json)

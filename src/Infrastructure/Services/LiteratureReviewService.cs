@@ -13,10 +13,10 @@ namespace AutonomousResearchAgent.Infrastructure.Services;
 
 public sealed class LiteratureReviewService(
     ApplicationDbContext dbContext,
-    OpenRouterChatClient openRouterChatClient,
+    IOpenRouterChatClient openRouterChatClient,
     ILogger<LiteratureReviewService> logger) : ILiteratureReviewService
 {
-    public async Task<LiteratureReviewDetail> CreateAsync(CreateLiteratureReviewCommand command, int userId, CancellationToken cancellationToken)
+    public async Task<LiteratureReviewDetail> CreateAsync(CreateLiteratureReviewCommand command, Guid userId, CancellationToken cancellationToken)
     {
         var entity = new LiteratureReview
         {
@@ -46,7 +46,7 @@ public sealed class LiteratureReviewService(
             entity.CompletedAt);
     }
 
-    public async Task<LiteratureReviewDetail?> GetByIdAsync(Guid id, int userId, CancellationToken cancellationToken)
+    public async Task<LiteratureReviewDetail?> GetByIdAsync(Guid id, Guid userId, CancellationToken cancellationToken)
     {
         var entity = await dbContext.LiteratureReviews
             .AsNoTracking()
@@ -72,7 +72,7 @@ public sealed class LiteratureReviewService(
             entity.CompletedAt);
     }
 
-    public async Task<IReadOnlyList<LiteratureReviewModel>> ListAsync(int userId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<LiteratureReviewModel>> ListAsync(Guid userId, CancellationToken cancellationToken)
     {
         var items = await dbContext.LiteratureReviews
             .AsNoTracking()
@@ -213,7 +213,7 @@ Papers to review:
         return GenerateBytesFromMarkdown(markdown);
     }
 
-    public async Task DeleteAsync(Guid id, int userId, CancellationToken cancellationToken)
+    public async Task DeleteAsync(Guid id, Guid userId, CancellationToken cancellationToken)
     {
         var entity = await dbContext.LiteratureReviews.FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId, cancellationToken)
             ?? throw new NotFoundException(nameof(LiteratureReview), id);

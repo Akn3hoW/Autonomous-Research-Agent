@@ -13,20 +13,55 @@ using AutonomousResearchAgent.Application.Papers;
 using AutonomousResearchAgent.Application.Search;
 using AutonomousResearchAgent.Application.Summaries;
 using AutonomousResearchAgent.Domain.Enums;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
+using System.Security.Claims;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Xunit;
 
 namespace Infrastructure.Tests;
 
 public sealed class ControllerTests
 {
+    private static void SetupControllerContext(ControllerBase controller)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
+            new("sub", Guid.NewGuid().ToString())
+        };
+        var identity = new ClaimsIdentity(claims, "TestAuth");
+        var principal = new ClaimsPrincipal(identity);
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = principal }
+        };
+    }
+
+    private static void SetupControllerContextWithUserId(ControllerBase controller, Guid userId)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
+            new("sub", userId.ToString())
+        };
+        var identity = new ClaimsIdentity(claims, "TestAuth");
+        var principal = new ClaimsPrincipal(identity);
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = principal }
+        };
+    }
+
     [Fact]
     public async Task PapersController_GetPapers_returns_ok_with_paged_response()
     {
         var mockService = new Mock<IPaperService>();
         var mockCitationGraphService = new Mock<ICitationGraphService>();
         var controller = new PapersController(mockService.Object, mockCitationGraphService.Object);
+        SetupControllerContext(controller);
         var cancellationToken = CancellationToken.None;
 
         var pagedResult = new PagedResult<PaperListItem>(
@@ -58,6 +93,7 @@ public sealed class ControllerTests
         var mockService = new Mock<IPaperService>();
         var mockCitationGraphService = new Mock<ICitationGraphService>();
         var controller = new PapersController(mockService.Object, mockCitationGraphService.Object);
+        SetupControllerContext(controller);
         var paperId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -82,6 +118,7 @@ public sealed class ControllerTests
         var mockService = new Mock<IPaperService>();
         var mockCitationGraphService = new Mock<ICitationGraphService>();
         var controller = new PapersController(mockService.Object, mockCitationGraphService.Object);
+        SetupControllerContext(controller);
         var cancellationToken = CancellationToken.None;
 
         var request = new CreatePaperRequest
@@ -113,6 +150,7 @@ public sealed class ControllerTests
         var mockService = new Mock<IPaperService>();
         var mockCitationGraphService = new Mock<ICitationGraphService>();
         var controller = new PapersController(mockService.Object, mockCitationGraphService.Object);
+        SetupControllerContext(controller);
         var paperId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -137,6 +175,7 @@ public sealed class ControllerTests
     {
         var mockService = new Mock<IJobService>();
         var controller = new JobsController(mockService.Object);
+        SetupControllerContext(controller);
         var cancellationToken = CancellationToken.None;
 
         var pagedResult = new PagedResult<JobModel>(
@@ -163,6 +202,7 @@ public sealed class ControllerTests
     {
         var mockService = new Mock<IJobService>();
         var controller = new JobsController(mockService.Object);
+        SetupControllerContext(controller);
         var jobId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -183,6 +223,7 @@ public sealed class ControllerTests
     {
         var mockService = new Mock<IJobService>();
         var controller = new JobsController(mockService.Object);
+        SetupControllerContext(controller);
         var cancellationToken = CancellationToken.None;
 
         var request = new CreateImportJobRequest
@@ -209,6 +250,7 @@ public sealed class ControllerTests
     {
         var mockService = new Mock<IJobService>();
         var controller = new JobsController(mockService.Object);
+        SetupControllerContext(controller);
         var cancellationToken = CancellationToken.None;
 
         var paperId = Guid.NewGuid();
@@ -236,6 +278,7 @@ public sealed class ControllerTests
     {
         var mockService = new Mock<IJobService>();
         var controller = new JobsController(mockService.Object);
+        SetupControllerContext(controller);
         var jobId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -325,7 +368,8 @@ public sealed class ControllerTests
     public async Task SummariesController_GetSummariesForPaper_returns_ok_with_summaries_list()
     {
         var mockService = new Mock<ISummaryService>();
-        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>());
+        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>(), Mock.Of<IPromptVersionService>());
+        SetupControllerContext(controller);
         var paperId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -348,7 +392,8 @@ public sealed class ControllerTests
     public async Task SummariesController_CreateSummary_returns_created()
     {
         var mockService = new Mock<ISummaryService>();
-        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>());
+        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>(), Mock.Of<IPromptVersionService>());
+        SetupControllerContext(controller);
         var paperId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -375,7 +420,8 @@ public sealed class ControllerTests
     public async Task SummariesController_GetSummary_returns_ok()
     {
         var mockService = new Mock<ISummaryService>();
-        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>());
+        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>(), Mock.Of<IPromptVersionService>());
+        SetupControllerContext(controller);
         var summaryId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -396,14 +442,15 @@ public sealed class ControllerTests
     public async Task SummariesController_UpdateSummary_returns_ok()
     {
         var mockService = new Mock<ISummaryService>();
-        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>());
+        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>(), Mock.Of<IPromptVersionService>());
+        SetupControllerContext(controller);
         var summaryId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
-        var request = new UpdateSummaryRequest { Summary = "Updated summary" };
+        var request = new UpdateSummaryRequest { Summary = JsonNode.Parse("\"Updated summary\"") };
 
         var updated = new SummaryModel(
-            summaryId, Guid.NewGuid(), "model", "v1", SummaryStatus.Generated, "Updated summary", null, null, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+            summaryId, Guid.NewGuid(), "model", "v1", SummaryStatus.Generated, JsonNode.Parse("\"Updated summary\""), null, null, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
 
         mockService.Setup(s => s.UpdateAsync(summaryId, It.IsAny<UpdateSummaryCommand>(), cancellationToken))
             .ReturnsAsync(updated);
@@ -412,14 +459,15 @@ public sealed class ControllerTests
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<SummaryDto>(okResult.Value);
-        Assert.Equal("Updated summary", response.Summary);
+        Assert.Equal("Updated summary", response.Summary?.AsValue().GetValue<string>());
     }
 
     [Fact]
     public async Task SummariesController_ApproveSummary_returns_ok()
     {
         var mockService = new Mock<ISummaryService>();
-        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>());
+        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>(), Mock.Of<IPromptVersionService>());
+        SetupControllerContext(controller);
         var summaryId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -442,7 +490,8 @@ public sealed class ControllerTests
     public async Task SummariesController_RejectSummary_returns_ok()
     {
         var mockService = new Mock<ISummaryService>();
-        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>());
+        var controller = new SummariesController(mockService.Object, Mock.Of<ISummaryDiffService>(), Mock.Of<ISummarizationService>(), Mock.Of<IPromptVersionService>());
+        SetupControllerContext(controller);
         var summaryId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -466,6 +515,7 @@ public sealed class ControllerTests
     {
         var mockService = new Mock<IPaperDocumentService>();
         var controller = new PaperDocumentsController(mockService.Object);
+        SetupControllerContext(controller);
         var paperId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -489,6 +539,7 @@ public sealed class ControllerTests
     {
         var mockService = new Mock<IPaperDocumentService>();
         var controller = new PaperDocumentsController(mockService.Object);
+        SetupControllerContext(controller);
         var paperId = Guid.NewGuid();
         var documentId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
@@ -511,6 +562,7 @@ public sealed class ControllerTests
     {
         var mockService = new Mock<IPaperDocumentService>();
         var controller = new PaperDocumentsController(mockService.Object);
+        SetupControllerContext(controller);
         var paperId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;
 
@@ -538,6 +590,7 @@ public sealed class ControllerTests
     {
         var mockService = new Mock<IPaperDocumentService>();
         var controller = new PaperDocumentsController(mockService.Object);
+        SetupControllerContext(controller);
         var paperId = Guid.NewGuid();
         var documentId = Guid.NewGuid();
         var cancellationToken = CancellationToken.None;

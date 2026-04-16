@@ -10,7 +10,7 @@ public sealed record DuplicatePairResponse(
     string PaperBTitle,
     double SimilarityScore,
     string Status,
-    int? ReviewedByUserId,
+    Guid? ReviewedByUserId,
     DateTime? ReviewedAt,
     string? Notes,
     DateTimeOffset CreatedAt);

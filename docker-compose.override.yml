@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: src/Api/Dockerfile
+    volumes:
+      - ./src/Api:/app
+    ports:
+      - "5000:8080"
+      - "5001:5001"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://+:8080;https://+:5001"
+      ENABLE_DEV_AUTH: "true"
+    command: ["dotnet", "watch", "--project", "src/Api/Api.csproj", "run"]
+
+  embedding-service:
+    volumes:
+      - ./scripts:/app
+    ports:
+      - "8001:8001"
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"

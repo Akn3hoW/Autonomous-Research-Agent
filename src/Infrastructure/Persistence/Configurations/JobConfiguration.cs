@@ -32,5 +32,8 @@ public sealed class JobConfiguration : IEntityTypeConfiguration<Job>
         builder.HasIndex(x => x.ParentJobId);
         builder.HasIndex(x => x.RetryCount);
         builder.HasIndex(x => x.LastAttemptAt);
+        builder.HasIndex(x => x.CancellationRequestedAt);
+        builder.Property(x => x.CancellationRequestedAt);
+        builder.Property(x => x.TimeoutSeconds);
     }
 }

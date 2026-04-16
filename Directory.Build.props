@@ -5,6 +5,7 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <UseSharedCompilation>false</UseSharedCompilation>
+    <MSBuildNodeReuse>false</MSBuildNodeReuse>
   </PropertyGroup>
 </Project>
 
