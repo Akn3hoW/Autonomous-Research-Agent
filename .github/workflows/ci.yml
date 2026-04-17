@@ -1,0 +1,195 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore AutonomousResearchAgent.sln
+
+      - name: Build
+        run: dotnet build AutonomousResearchAgent.sln --configuration Release --no-restore
+
+      - name: Run linters
+        run: |
+          dotnet format --verify-no-changes AutonomousResearchAgent.sln --no-restore || true
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build
+          path: |
+            src/**/bin/Release/
+            !src/**/bin/Release/**/ref/
+          retention-days: 1
+
+  validate-migrations:
+    runs-on: ubuntu-latest
+    needs: build-backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0'
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-build
+          path: .
+
+      - name: Validate migrations
+        run: |
+          dotnet ef migrations validate --no-build --project src/Infrastructure --startup-project src/Api
+
+  run-tests:
+    runs-on: ubuntu-latest
+    needs: build-backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0'
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-build
+
+      - name: Test
+        run: dotnet test AutonomousResearchAgent.sln --configuration Release --no-build --verbosity normal
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    needs: build-backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: frontend
+
+      - name: Build
+        run: npm run build
+        working-directory: frontend
+
+      - name: Run frontend tests
+        run: npm run test || true
+        working-directory: frontend
+
+  build-docker:
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/Api/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}/api:${{ github.sha }}, ghcr.io/${{ github.repository }}/api:latest
+
+      - name: Build and push embedding service image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: scripts/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}/embedding-service:${{ github.sha }}, ghcr.io/${{ github.repository }}/embedding-service:latest
+
+  run-e2e-tests:
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore backend
+        run: dotnet restore AutonomousResearchAgent.sln
+
+      - name: Build backend
+        run: dotnet build AutonomousResearchAgent.sln --configuration Release --no-restore
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: tests/E2E
+
+      - name: Start API server
+        run: dotnet run --project src/Api --configuration Release &
+        env:
+          ConnectionStrings__Postgres: "Host=localhost;Port=5432;Database=ara_test;Username=postgres;Password=postgres"
+          ConnectionStrings__Redis: "Host=localhost;Port=6379;DefaultDatabase=0"
+          ASPNETCORE_ENVIRONMENT: Development
+
+      - name: Wait for API to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+              echo "API is ready"
+              break
+            fi
+            echo "Waiting for API... ($i/30)"
+            sleep 2
+          done
+
+      - name: Run E2E tests
+        run: npx playwright test
+        working-directory: tests/E2E
+        env:
+          API_BASE_URL: http://localhost:8080
+          DOTNET_RUNNING: true

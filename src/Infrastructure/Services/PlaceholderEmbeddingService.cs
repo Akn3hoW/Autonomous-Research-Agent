@@ -3,12 +3,17 @@ using System.Text;
 using AutonomousResearchAgent.Application.Search;
 using AutonomousResearchAgent.Domain.Enums;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AutonomousResearchAgent.Infrastructure.Services;
 
-public sealed class PlaceholderEmbeddingService(ILogger<PlaceholderEmbeddingService> logger) : IEmbeddingService
+public sealed class PlaceholderEmbeddingService(
+    ILogger<PlaceholderEmbeddingService> logger,
+    IOptions<LocalEmbeddingOptions> options) : IEmbeddingService
 {
-    private const int Dimensions = 1536;
+    private const int FallbackDimensions = 1536;
+
+    private int Dimensions => options.Value.VectorDimensions > 0 ? options.Value.VectorDimensions : FallbackDimensions;
 
     public Task<float[]> GenerateEmbeddingAsync(string content, EmbeddingType embeddingType, CancellationToken cancellationToken)
     {
@@ -22,7 +27,7 @@ public sealed class PlaceholderEmbeddingService(ILogger<PlaceholderEmbeddingServ
         return Task.FromResult(CreateDeterministicVector($"query:{query}"));
     }
 
-    private static float[] CreateDeterministicVector(string input)
+    private float[] CreateDeterministicVector(string input)
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
         var vector = new float[Dimensions];

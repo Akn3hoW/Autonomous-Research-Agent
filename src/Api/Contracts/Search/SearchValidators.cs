@@ -34,8 +34,8 @@ public sealed class HybridSearchRequestValidator : AbstractValidator<HybridSearc
         RuleFor(x => x.KeywordWeight).InclusiveBetween(0, 1);
         RuleFor(x => x.SemanticWeight).InclusiveBetween(0, 1);
         RuleFor(x => x)
-            .Must(x => x.KeywordWeight + x.SemanticWeight > 0)
-            .WithMessage("KeywordWeight and SemanticWeight must add up to more than zero.");
+            .Must(x => Math.Abs(x.KeywordWeight + x.SemanticWeight - 1.0) < 0.001)
+            .WithMessage("KeywordWeight and SemanticWeight must sum to 1.0.");
     }
 }
 

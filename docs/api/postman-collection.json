@@ -1,0 +1,485 @@
+{
+	"info": {
+		"name": "Autonomous Research Agent API",
+		"description": "API for scientific paper intelligence platform. Full OpenAPI spec at /openapi/v1.json",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000"
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "Papers",
+			"item": [
+				{
+					"name": "List papers",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/papers",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "papers"]
+						},
+						"description": "Returns paginated list of papers"
+					}
+				},
+				{
+					"name": "Get paper by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/papers/{id}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "papers", "{id}"]
+						},
+						"description": "Returns a single paper by ID"
+					}
+				},
+				{
+					"name": "Create paper",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Sample Paper\",\n  \"abstract\": \"Paper abstract here\",\n  \"doi\": \"10.1234/example\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/papers",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "papers"]
+						},
+						"description": "Creates a new paper record"
+					}
+				},
+				{
+					"name": "Update paper",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Title\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/papers/{id}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "papers", "{id}"]
+						},
+						"description": "Partially updates a paper"
+					}
+				},
+				{
+					"name": "Import papers from Semantic Scholar",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"semanticScholarId\": \"Sx0123abc\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/papers/import",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "papers", "import"]
+						},
+						"description": "Imports papers from Semantic Scholar by ID"
+					}
+				}
+			]
+		},
+		{
+			"name": "Summaries",
+			"item": [
+				{
+					"name": "Get paper summaries",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/papers/{id}/summaries",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "papers", "{id}", "summaries"]
+						},
+						"description": "Returns all summaries for a paper"
+					}
+				},
+				{
+					"name": "Generate summary",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"focusAreas\": [\"methodology\", \"results\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/papers/{id}/summaries",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "papers", "{id}", "summaries"]
+						},
+						"description": "Generates a new AI summary for a paper"
+					}
+				},
+				{
+					"name": "Get summary by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/summaries/{summaryId}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "summaries", "{summaryId}"]
+						},
+						"description": "Returns a specific summary"
+					}
+				},
+				{
+					"name": "Approve summary",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/summaries/{summaryId}/approve",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "summaries", "{summaryId}", "approve"]
+						},
+						"description": "Marks a summary as approved"
+					}
+				},
+				{
+					"name": "Reject summary",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/summaries/{summaryId}/reject",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "summaries", "{summaryId}", "reject"]
+						},
+						"description": "Marks a summary as rejected"
+					}
+				}
+			]
+		},
+		{
+			"name": "Search",
+			"item": [
+				{
+					"name": "Basic search",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/search?q=machine learning",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "search"],
+							"query": [
+								{
+									"key": "q",
+									"value": "machine learning"
+								}
+							]
+						},
+						"description": "Basic keyword search across papers"
+					}
+				},
+				{
+					"name": "Semantic search",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"deep learning for NLP\",\n  \"limit\": 10\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/search/semantic",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "search", "semantic"]
+						},
+						"description": "Vector-based semantic search using embeddings"
+					}
+				},
+				{
+					"name": "Hybrid search",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"neural networks optimization\",\n  \"keywordBoost\": 0.3,\n  \"semanticBoost\": 0.7,\n  \"limit\": 10\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/search/hybrid",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "search", "hybrid"]
+						},
+						"description": "Combines keyword and semantic search"
+					}
+				}
+			]
+		},
+		{
+			"name": "Jobs",
+			"item": [
+				{
+					"name": "List jobs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/jobs",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "jobs"]
+						},
+						"description": "Returns paginated list of background jobs"
+					}
+				},
+				{
+					"name": "Get job by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/jobs/{id}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "jobs", "{id}"]
+						},
+						"description": "Returns a specific job by ID"
+					}
+				},
+				{
+					"name": "Create import papers job",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"paperIds\": [\"Sx0123abc\", \"Sx0456def\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/jobs/import-papers",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "jobs", "import-papers"]
+						},
+						"description": "Creates an async job to import papers from Semantic Scholar"
+					}
+				},
+				{
+					"name": "Create summarize paper job",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"paperId\": \"123\",\n  \"focusAreas\": [\"methodology\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/jobs/summarize-paper",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "jobs", "summarize-paper"]
+						},
+						"description": "Creates an async job to summarize a paper"
+					}
+				},
+				{
+					"name": "Retry job",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/jobs/{id}/retry",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "jobs", "{id}", "retry"]
+						},
+						"description": "Retries a failed job"
+					}
+				}
+			]
+		},
+		{
+			"name": "Analysis",
+			"item": [
+				{
+					"name": "Compare papers",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"paperIds\": [\"123\", \"456\"],\n  \"comparisonType\": \"methodology\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analysis/compare-papers",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "analysis", "compare-papers"]
+						},
+						"description": "Synchronously compares multiple papers"
+					}
+				},
+				{
+					"name": "Compare fields",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"paperIds\": [\"123\", \"456\"],\n  \"fields\": [\"abstract\", \"references\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analysis/compare-fields",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "analysis", "compare-fields"]
+						},
+						"description": "Compares specific fields across papers"
+					}
+				},
+				{
+					"name": "Generate insights (async)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"paperIds\": [\"123\", \"456\", \"789\"],\n  \"insightTypes\": [\"trends\", \"gaps\", \"relationships\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analysis/generate-insights",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "analysis", "generate-insights"]
+						},
+						"description": "Creates an async job to generate analysis insights"
+					}
+				},
+				{
+					"name": "Get analysis job result",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analysis/{jobId}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "analysis", "{jobId}"]
+						},
+						"description": "Returns the result of an analysis job"
+					}
+				}
+			]
+		},
+		{
+			"name": "Health & Docs",
+			"item": [
+				{
+					"name": "Health check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["health"]
+						},
+						"description": "Returns service health status"
+					}
+				},
+				{
+					"name": "OpenAPI JSON",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/openapi/v1.json",
+							"host": ["{{baseUrl}}"],
+							"path": ["openapi", "v1.json"]
+						},
+						"description": "Returns the full OpenAPI 3.0 specification"
+					}
+				},
+				{
+					"name": "Job status SignalR hub",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/hubs/jobs",
+							"host": ["{{baseUrl}}"],
+							"path": ["hubs", "jobs"]
+						},
+						"description": "SignalR hub for real-time job status updates. Connect via WebSocket."
+					}
+				}
+			]
+		}
+	]
+}

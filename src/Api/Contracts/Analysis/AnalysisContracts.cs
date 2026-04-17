@@ -35,3 +35,18 @@ public sealed record AnalysisJobStatusDto(
     string? ErrorMessage,
     AnalysisResultDto? Result);
 
+public sealed class IdentifyResearchGapRequest
+{
+    public string Topic { get; init; } = string.Empty;
+}
+
+public sealed record ResearchGapReportDto(
+    Guid Id,
+    string Topic,
+    JsonNode? GapAnalysis,
+    JsonNode? CorpusCoverage,
+    JsonNode? ExternalCoverage,
+    JsonNode? SuggestedQueries,
+    string? CreatedBy,
+    DateTimeOffset CreatedAt);
+

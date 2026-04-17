@@ -1,4 +1,7 @@
+using System.Text.Json;
 using AutonomousResearchAgent.Application.Analysis;
+using AutonomousResearchAgent.Application.Annotations;
+using AutonomousResearchAgent.Application.Documents;
 using AutonomousResearchAgent.Application.Jobs;
 using AutonomousResearchAgent.Application.Papers;
 using AutonomousResearchAgent.Application.Summaries;
@@ -18,6 +21,7 @@ internal static class ModelMappingExtensions
             paper.CitationCount,
             paper.Source,
             paper.Status,
+            paper.PaperTags.Select(pt => pt.Tag).ToList().AsReadOnly(),
             paper.CreatedAt,
             paper.UpdatedAt);
 
@@ -35,8 +39,28 @@ internal static class ModelMappingExtensions
             paper.Source,
             paper.Status,
             JsonNodeMapper.Deserialize(paper.MetadataJson),
+            paper.PaperTags.Select(pt => pt.Tag).ToList().AsReadOnly(),
             paper.CreatedAt,
             paper.UpdatedAt);
+
+
+    public static PaperDocumentModel ToModel(this PaperDocument document) =>
+        new(
+            document.Id,
+            document.PaperId,
+            document.SourceUrl,
+            document.FileName,
+            document.MediaType,
+            document.StoragePath,
+            document.Status,
+            document.RequiresOcr,
+            document.ExtractedText,
+            JsonNodeMapper.Deserialize(document.MetadataJson),
+            document.LastError,
+            document.DownloadedAt,
+            document.ExtractedAt,
+            document.CreatedAt,
+            document.UpdatedAt);
 
     public static SummaryModel ToModel(this PaperSummary summary) =>
         new(
@@ -63,7 +87,39 @@ internal static class ModelMappingExtensions
             job.TargetEntityId,
             job.CreatedBy,
             job.CreatedAt,
-            job.UpdatedAt);
+            job.UpdatedAt,
+            job.ParentJobId,
+            job.RetryCount,
+            job.LastAttemptAt,
+            JsonNodeMapper.Deserialize(job.RetryPolicyJson),
+            ParseDependsOnJobIds(job.DependsOnJobIds),
+            job.WorkflowStep);
+
+    private static List<Guid>? ParseDependsOnJobIds(string? dependsOnJobIdsJson)
+    {
+        if (string.IsNullOrWhiteSpace(dependsOnJobIdsJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(dependsOnJobIdsJson ?? "[]");
+            var result = new List<Guid>();
+            foreach (var element in doc.RootElement.EnumerateArray())
+            {
+                if (element.ValueKind == JsonValueKind.String && Guid.TryParse(element.GetString(), out var guid))
+                {
+                    result.Add(guid);
+                }
+            }
+            return result;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     public static AnalysisResultModel ToModel(this AnalysisResult result) =>
         new(
@@ -75,5 +131,19 @@ internal static class ModelMappingExtensions
             result.CreatedBy,
             result.CreatedAt,
             result.UpdatedAt);
+
+    public static AnnotationModel ToModel(this PaperAnnotation annotation) =>
+        new(
+            annotation.Id,
+            annotation.PaperId,
+            annotation.UserId,
+            annotation.User?.Username ?? string.Empty,
+            annotation.HighlightedText,
+            annotation.Note,
+            annotation.PageNumber,
+            annotation.OffsetStart,
+            annotation.OffsetEnd,
+            annotation.CreatedAt,
+            annotation.UpdatedAt);
 }
 

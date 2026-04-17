@@ -8,6 +8,7 @@ public sealed class PaperSummaryConfiguration : IEntityTypeConfiguration<PaperSu
 {
     public void Configure(EntityTypeBuilder<PaperSummary> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("paper_summaries");
 
         builder.HasKey(x => x.Id);

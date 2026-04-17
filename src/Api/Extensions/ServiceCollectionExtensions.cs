@@ -1,15 +1,23 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using AutonomousResearchAgent.Api.Authorization;
 using AutonomousResearchAgent.Api.Contracts.Analysis;
+using AutonomousResearchAgent.Api.Services;
+using AutonomousResearchAgent.Api.Startup;
 using AutonomousResearchAgent.Api.Contracts.Jobs;
 using AutonomousResearchAgent.Api.Contracts.Papers;
 using AutonomousResearchAgent.Api.Contracts.Search;
 using AutonomousResearchAgent.Api.Contracts.Summaries;
 using AutonomousResearchAgent.Api.Middleware;
+using AutonomousResearchAgent.Application.Jobs;
+using AutonomousResearchAgent.Infrastructure.Services;
 using FluentValidation;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
+using StackExchange.Redis;
 
 namespace AutonomousResearchAgent.Api.Extensions;
 
@@ -17,9 +25,12 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddApiLayer(this IServiceCollection services, IConfiguration configuration)
     {
+        ArgumentNullException.ThrowIfNull(configuration);
+
         services.AddProblemDetails();
 
         services.AddScoped<ValidationActionFilter>();
+        services.AddScoped<IJobNotificationService, JobNotificationService>();
 
         services.AddControllers(options =>
         {
@@ -29,12 +40,19 @@ public static class ServiceCollectionExtensions
         services.AddJwtAuthentication(configuration);
         services.AddAuthorizationPolicies();
         services.AddApiValidators();
+        services.Configure<RateLimitOptions>(configuration.GetSection(RateLimitOptions.SectionName));
+        services.AddStartupFilter<JwtSigningKeyValidator>();
+        services.AddStartupFilter<PostgresPasswordValidator>();
+        services.AddStartupFilter<DatabaseHealthCheck>();
+        services.AddRateLimitingPolicies(configuration);
 
         return services;
     }
 
     public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
+        ArgumentNullException.ThrowIfNull(configuration);
+
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
 
@@ -59,10 +77,11 @@ public static class ServiceCollectionExtensions
                         ValidateIssuerSigningKey = true,
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
                         ValidateLifetime = true,
-                        ClockSkew = TimeSpan.FromMinutes(2)
+                        ClockSkew = TimeSpan.FromSeconds(30)
                     };
                 }
-            });
+            })
+            .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationDefaults.AuthenticationScheme, null);
 
         return services;
     }
@@ -103,7 +122,118 @@ public static class ServiceCollectionExtensions
     {
         services.AddEndpointsApiExplorer();
         services.AddOpenApi();
-        services.AddHealthChecks();
+        services.AddSwaggerGen(options =>
+        {
+            options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Name = "Authorization",
+                Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "JWT",
+                In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+                Description = "Enter your JWT token"
+            });
+            options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+            {
+                {
+                    new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                    {
+                        Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                        {
+                            Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                        }
+                    },
+                    Array.Empty<string>()
+                }
+            });
+        });
+        services.AddHealthChecks()
+            .AddCheck<RedisHealthCheck>("redis", tags: new[] { "ready" })
+            .AddCheck<EmbeddingServiceHealthCheck>("embedding_service", tags: new[] { "ready" });
         return services;
+    }
+
+    public static IServiceCollection AddStartupFilter<T>(this IServiceCollection services) where T : class, IStartupFilter
+    {
+        services.AddSingleton<IStartupFilter, T>();
+        return services;
+    }
+
+    public static IServiceCollection AddRateLimitingPolicies(this IServiceCollection services, IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        services.Configure<RateLimitOptions>(configuration.GetSection(RateLimitOptions.SectionName));
+        var rateLimitOptions = configuration.GetSection(RateLimitOptions.SectionName).Get<RateLimitOptions>() ?? new RateLimitOptions();
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            options.AddPolicy(RateLimiterPolicyNames.Expensive, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: GetPartitionKey(context),
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = rateLimitOptions.ExpensivePermitLimit,
+                        Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds),
+                        QueueLimit = 0
+                    }));
+
+            options.AddPolicy(RateLimiterPolicyNames.JobCreation, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: GetPartitionKey(context),
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = rateLimitOptions.JobCreationPermitLimit,
+                        Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds),
+                        QueueLimit = 0
+                    }));
+
+            options.AddPolicy(RateLimiterPolicyNames.Standard, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: GetPartitionKey(context),
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = rateLimitOptions.StandardPermitLimit,
+                        Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds),
+                        QueueLimit = 0
+                    }));
+
+            options.AddPolicy(RateLimiterPolicyNames.Strict, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: GetPartitionKey(context),
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds),
+                        QueueLimit = 0
+                    }));
+
+            options.OnRejected = async (context, cancellationToken) =>
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<RateLimiterOptions>>();
+                logger.LogWarning("Rate limit exceeded for {Path} from {RemoteIp}", context.HttpContext.Request.Path, context.HttpContext.Connection.RemoteIpAddress);
+                context.HttpContext.Response.Headers["X-RateLimit-Remaining"] = "0";
+                context.HttpContext.Response.Headers["X-RateLimit-Reset"] = DateTimeOffset.UtcNow.AddSeconds(60).ToUnixTimeSeconds().ToString();
+                await Task.CompletedTask;
+            };
+        });
+
+        return services;
+    }
+
+    private static string GetPartitionKey(HttpContext context)
+    {
+        if (context.User.Identity?.IsAuthenticated == true)
+        {
+            var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrEmpty(userId))
+            {
+                return "user:" + userId;
+            }
+        }
+        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        return "ip:" + ip;
     }
 }

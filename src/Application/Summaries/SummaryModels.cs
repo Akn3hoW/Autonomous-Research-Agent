@@ -22,7 +22,9 @@ public sealed record CreateSummaryCommand(
     string PromptVersion,
     SummaryStatus Status,
     JsonNode? Summary,
-    string? SearchText);
+    string? SearchText,
+    Guid? AbTestSessionId = null,
+    bool IsSelected = false);
 
 public sealed record UpdateSummaryCommand(
     SummaryStatus? Status,

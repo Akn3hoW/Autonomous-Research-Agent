@@ -47,3 +47,18 @@ public sealed record SearchResultDto(
     string MatchType,
     JsonNode? Highlights);
 
+public sealed class ChunkSearchRequest
+{
+    public string Query { get; init; } = string.Empty;
+    public int PageNumber { get; init; } = 1;
+    public int PageSize { get; init; } = 10;
+    public int MaxCandidates { get; init; } = 50;
+}
+
+public sealed record ChunkSearchResultDto(
+    Guid ChunkId,
+    Guid PaperId,
+    string PaperTitle,
+    string ChunkText,
+    double Score);
+

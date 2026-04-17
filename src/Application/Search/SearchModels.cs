@@ -32,3 +32,16 @@ public sealed record SearchResultModel(
     string MatchType,
     JsonNode? Highlights);
 
+public sealed record ChunkSearchRequestModel(
+    string Query,
+    int PageNumber = 1,
+    int PageSize = 10,
+    int MaxCandidates = 50);
+
+public sealed record ChunkSearchResultModel(
+    Guid ChunkId,
+    Guid PaperId,
+    string PaperTitle,
+    string ChunkText,
+    double Score);
+

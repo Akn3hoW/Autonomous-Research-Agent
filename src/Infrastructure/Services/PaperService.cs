@@ -1,4 +1,7 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using AutonomousResearchAgent.Application.Common;
+using AutonomousResearchAgent.Application.Jobs;
 using AutonomousResearchAgent.Application.Papers;
 using AutonomousResearchAgent.Domain.Entities;
 using AutonomousResearchAgent.Domain.Enums;
@@ -11,10 +14,16 @@ namespace AutonomousResearchAgent.Infrastructure.Services;
 public sealed class PaperService(
     ApplicationDbContext dbContext,
     ISemanticScholarClient semanticScholarClient,
+    IArxivClient arxivClient,
+    ICrossRefClient crossRefClient,
+    IJobService jobService,
+    IEmbeddingIndexingService embeddingIndexingService,
     ILogger<PaperService> logger) : IPaperService
 {
-    public async Task<PagedResult<PaperListItem>> ListAsync(PaperQuery query, CancellationToken cancellationToken)
+    public async Task<PagedResult<PaperListItem>> ListAsync(PaperQuery query, Guid? userId, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(query);
+
         var papersQuery = dbContext.Papers.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(query.Query))
@@ -46,25 +55,54 @@ public sealed class PaperService(
             papersQuery = papersQuery.Where(p => p.Status == query.Status.Value);
         }
 
+        if (!string.IsNullOrWhiteSpace(query.Tag) && userId.HasValue)
+        {
+            var tagPattern = QueryHelpers.ToILikePattern(query.Tag);
+            papersQuery = papersQuery.Where(p => p.PaperTags.Any(pt => pt.UserId == userId.Value && EF.Functions.ILike(pt.Tag, tagPattern)));
+        }
+
         papersQuery = ApplySorting(papersQuery, query);
 
         var totalCount = await papersQuery.LongCountAsync(cancellationToken);
 
+        if (userId.HasValue)
+        {
+            papersQuery = papersQuery.Where(p => !p.PaperTags.Any() || p.PaperTags.Any(pt => pt.UserId == userId.Value));
+        }
+
         var papers = await papersQuery
             .Skip((query.PageNumber - 1) * query.PageSize)
             .Take(query.PageSize)
+            .Include(p => p.PaperTags)
             .ToListAsync(cancellationToken);
+
+        if (userId.HasValue)
+        {
+            foreach (var paper in papers)
+            {
+                paper.PaperTags = paper.PaperTags.Where(pt => pt.UserId == userId.Value).ToList();
+            }
+        }
 
         var items = papers.Select(p => p.ToListItem()).ToList();
 
         return new PagedResult<PaperListItem>(items, query.PageNumber, query.PageSize, totalCount);
     }
 
-    public async Task<PaperDetail> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<PaperDetail> GetByIdAsync(Guid id, Guid? userId, CancellationToken cancellationToken)
     {
-        var paper = await dbContext.Papers
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+        var paperQuery = dbContext.Papers.AsNoTracking().AsQueryable();
+
+        if (userId.HasValue)
+        {
+            paperQuery = paperQuery.Include(p => p.PaperTags.Where(pt => pt.UserId == userId.Value));
+        }
+        else
+        {
+            paperQuery = paperQuery.Include(p => p.PaperTags);
+        }
+
+        var paper = await paperQuery.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         return paper is null
             ? throw new NotFoundException(nameof(Paper), id)
@@ -73,6 +111,8 @@ public sealed class PaperService(
 
     public async Task<PaperDetail> CreateAsync(CreatePaperCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         if (!string.IsNullOrWhiteSpace(command.Doi))
         {
             var duplicate = await dbContext.Papers.AnyAsync(
@@ -102,13 +142,22 @@ public sealed class PaperService(
 
         dbContext.Papers.Add(entity);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await embeddingIndexingService.UpsertPaperAbstractAsync(entity, cancellationToken);
 
         logger.LogInformation("Created paper {PaperId}", entity.Id);
-        return entity.ToDetail();
+
+        var paperWithTags = await dbContext.Papers
+            .AsNoTracking()
+            .Include(p => p.PaperTags)
+            .FirstAsync(p => p.Id == entity.Id, cancellationToken);
+
+        return paperWithTags.ToDetail();
     }
 
     public async Task<PaperDetail> UpdateAsync(Guid id, UpdatePaperCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var entity = await dbContext.Papers.FirstOrDefaultAsync(p => p.Id == id, cancellationToken)
             ?? throw new NotFoundException(nameof(Paper), id);
 
@@ -158,14 +207,27 @@ public sealed class PaperService(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await embeddingIndexingService.UpsertPaperAbstractAsync(entity, cancellationToken);
         logger.LogInformation("Updated paper {PaperId}", entity.Id);
 
-        return entity.ToDetail();
+        var paperWithTags = await dbContext.Papers
+            .AsNoTracking()
+            .Include(p => p.PaperTags)
+            .FirstAsync(p => p.Id == entity.Id, cancellationToken);
+
+        return paperWithTags.ToDetail();
     }
 
     public async Task<ImportPapersResult> ImportAsync(ImportPapersCommand command, CancellationToken cancellationToken)
     {
-        var imported = await semanticScholarClient.SearchPapersAsync(command.Queries, command.Limit, cancellationToken);
+        ArgumentNullException.ThrowIfNull(command);
+
+        var imported = command.Source?.ToLowerInvariant() switch
+        {
+            "arxiv" => await ImportFromArxivAsync(command.Queries, cancellationToken),
+            "doi" => await ImportFromDoiAsync(command.Queries, cancellationToken),
+            _ => await semanticScholarClient.SearchPapersAsync(command.Queries, command.Limit, cancellationToken)
+        };
 
         var semanticIds = imported.Select(c => c.SemanticScholarId).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
         var dois = imported.Select(c => c.Doi).Where(d => !string.IsNullOrWhiteSpace(d)).ToList();
@@ -182,7 +244,23 @@ public sealed class PaperService(
             .Where(p => p.Doi != null)
             .ToDictionary(p => p.Doi!);
 
+        var candidatePdfUrls = imported
+            .Select(c => c.Metadata?["openAccessPdfUrl"]?.GetValue<string>())
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .ToHashSet();
+
+        var existingDocUrls = candidatePdfUrls.Count > 0
+            ? (await dbContext.PaperDocuments
+                .Where(d => candidatePdfUrls.Contains(d.SourceUrl))
+                .Select(d => new { d.PaperId, d.SourceUrl })
+                .ToListAsync(cancellationToken))
+                .Select(d => (d.PaperId, d.SourceUrl))
+                .ToHashSet()
+            : new HashSet<(Guid, string)>();
+
         var results = new List<PaperDetail>();
+        var queuedDocuments = new List<PaperDocument>();
+        var papersToIndex = new List<Paper>();
         var newCount = 0;
 
         foreach (var candidate in imported)
@@ -214,16 +292,89 @@ public sealed class PaperService(
                 ApplyImportFields(existing, candidate);
             }
 
+            if (command.StoreImportedPapers)
+            {
+                var attachedDocument = TryAttachImportedDocument(existing, candidate, existingDocUrls);
+                if (attachedDocument is not null)
+                {
+                    queuedDocuments.Add(attachedDocument);
+                }
+
+                papersToIndex.Add(existing);
+            }
+
             results.Add(existing.ToDetail());
         }
 
         if (command.StoreImportedPapers)
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+
+            var papersToUpsert = papersToIndex
+                .GroupBy(p => p.Id)
+                .Select(group => group.First())
+                .ToList();
+
+            if (papersToUpsert.Count > 0)
+            {
+                await embeddingIndexingService.UpsertPaperAbstractAsync(papersToUpsert, cancellationToken);
+            }
+
+            foreach (var document in queuedDocuments)
+            {
+                document.Status = PaperDocumentStatus.Queued;
+                document.LastError = null;
+
+                await jobService.CreateAsync(
+                    new CreateJobCommand(JobType.ProcessPaperDocument, PaperDocumentJobPayload.Create(document), document.Id, "system-import"),
+                    cancellationToken);
+            }
+
+            if (queuedDocuments.Count > 0)
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
         }
 
-        logger.LogInformation("Imported {Count} papers ({New} new) from Semantic Scholar", results.Count, newCount);
+        logger.LogInformation("Imported {Count} papers ({New} new) from {Source}", results.Count, newCount, command.Source ?? "semanticscholar");
         return new ImportPapersResult(results, newCount);
+    }
+
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var entity = await dbContext.Papers.FirstOrDefaultAsync(p => p.Id == id, cancellationToken)
+            ?? throw new NotFoundException(nameof(Paper), id);
+
+        dbContext.Papers.Remove(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Deleted paper {PaperId}", id);
+    }
+
+
+    private PaperDocument? TryAttachImportedDocument(Paper paper, SemanticScholarPaperImportModel candidate, HashSet<(Guid PaperId, string SourceUrl)> existingDocUrls)
+    {
+        var openAccessPdfUrl = candidate.Metadata?["openAccessPdfUrl"]?.GetValue<string>();
+        if (string.IsNullOrWhiteSpace(openAccessPdfUrl))
+        {
+            return null;
+        }
+
+        if (existingDocUrls.Contains((paper.Id, openAccessPdfUrl)))
+        {
+            return null;
+        }
+
+        var document = new PaperDocument
+        {
+            PaperId = paper.Id,
+            SourceUrl = openAccessPdfUrl,
+            FileName = $"{paper.Id:N}.pdf",
+            MediaType = "application/pdf",
+            Status = PaperDocumentStatus.Pending
+        };
+
+        dbContext.PaperDocuments.Add(document);
+        return document;
     }
 
     private static void ApplyImportFields(Paper entity, SemanticScholarPaperImportModel candidate)
@@ -234,9 +385,111 @@ public sealed class PaperService(
         entity.Year = candidate.Year;
         entity.Venue = candidate.Venue;
         entity.CitationCount = candidate.CitationCount;
-        entity.Source = PaperSource.SemanticScholar;
+        entity.Source = ParsePaperSource(candidate.Metadata);
         entity.Status = PaperStatus.Imported;
         entity.MetadataJson = JsonNodeMapper.Serialize(candidate.Metadata);
+    }
+
+    private static PaperSource ParsePaperSource(JsonNode? metadata)
+    {
+        var source = metadata?["source"]?.GetValue<string>()?.ToLowerInvariant();
+        return source switch
+        {
+            "arxiv" => PaperSource.Arxiv,
+            "crossref" => PaperSource.CrossRef,
+            _ => PaperSource.SemanticScholar
+        };
+    }
+
+    private async Task<List<SemanticScholarPaperImportModel>> ImportFromArxivAsync(IReadOnlyCollection<string> queries, CancellationToken cancellationToken)
+    {
+        var results = new List<SemanticScholarPaperImportModel>();
+
+        foreach (var query in queries.Where(q => !string.IsNullOrWhiteSpace(q)))
+        {
+            var normalizedQuery = query.Trim();
+            if (normalizedQuery.StartsWith("arxiv:", StringComparison.OrdinalIgnoreCase) ||
+                normalizedQuery.StartsWith("arXiv:", StringComparison.OrdinalIgnoreCase))
+            {
+                var arxivId = normalizedQuery.Contains(":")
+                    ? normalizedQuery[(normalizedQuery.IndexOf(':') + 1)..]
+                    : normalizedQuery;
+
+                var paper = await arxivClient.GetPaperAsync(arxivId, cancellationToken);
+                if (paper is not null)
+                {
+                    results.Add(MapArxivPaperToImportModel(paper));
+                }
+            }
+            else
+            {
+                var papers = await arxivClient.SearchAsync(query, cancellationToken);
+                results.AddRange(papers.Select(MapArxivPaperToImportModel));
+            }
+        }
+
+        return results
+            .GroupBy(x => x.SemanticScholarId)
+            .Select(group => group.First())
+            .ToList();
+    }
+
+    private async Task<List<SemanticScholarPaperImportModel>> ImportFromDoiAsync(IReadOnlyCollection<string> queries, CancellationToken cancellationToken)
+    {
+        var results = new List<SemanticScholarPaperImportModel>();
+
+        foreach (var query in queries.Where(q => !string.IsNullOrWhiteSpace(q)))
+        {
+            var paper = await crossRefClient.GetByDoiAsync(query.Trim(), cancellationToken);
+            if (paper is not null)
+            {
+                results.Add(MapCrossRefPaperToImportModel(paper));
+            }
+        }
+
+        return results;
+    }
+
+    private static SemanticScholarPaperImportModel MapArxivPaperToImportModel(ArxivPaper paper)
+    {
+        return new SemanticScholarPaperImportModel(
+            paper.Id,
+            paper.Doi,
+            paper.Title,
+            paper.Summary,
+            paper.Authors,
+            paper.Published.Year,
+            null,
+            0,
+            new JsonObject
+            {
+                ["source"] = "Arxiv",
+                ["rawArxivId"] = paper.Id,
+                ["published"] = paper.Published.ToString("O"),
+                ["updated"] = paper.Updated.ToString("O"),
+                ["categories"] = JsonSerializer.SerializeToNode(paper.Categories),
+                ["pdfUrl"] = paper.PdfUrl
+            });
+    }
+
+    private static SemanticScholarPaperImportModel MapCrossRefPaperToImportModel(CrossRefPaper paper)
+    {
+        return new SemanticScholarPaperImportModel(
+            string.Empty,
+            paper.Doi,
+            paper.Title,
+            paper.Abstract,
+            paper.Authors,
+            paper.Published?.Year,
+            paper.ContainerTitle.FirstOrDefault(),
+            0,
+            new JsonObject
+            {
+                ["source"] = "CrossRef",
+                ["publisher"] = paper.Publisher,
+                ["containerTitle"] = JsonSerializer.SerializeToNode(paper.ContainerTitle),
+                ["type"] = paper.Type
+            });
     }
 
     private static List<string> SanitizeAuthors(IEnumerable<string> authors) =>

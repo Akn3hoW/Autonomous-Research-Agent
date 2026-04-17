@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AutonomousResearchAgent.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/search")]
+[Route($"{ApiConstants.ApiPrefix}/search")]
 public sealed class SearchController(ISearchService searchService) : ControllerBase
 {
     [HttpGet]
@@ -36,6 +36,15 @@ public sealed class SearchController(ISearchService searchService) : ControllerB
     public async Task<ActionResult<PagedResponse<SearchResultDto>>> HybridSearch([FromBody] HybridSearchRequest request, CancellationToken cancellationToken)
     {
         var result = await searchService.HybridSearchAsync(request.ToApplicationModel(), cancellationToken);
+        return Ok(result.ToPagedResponse(item => item.ToDto()));
+    }
+
+    [HttpPost("chunks")]
+    [Authorize(Policy = PolicyNames.ReadAccess)]
+    [ProducesResponseType(typeof(PagedResponse<ChunkSearchResultDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResponse<ChunkSearchResultDto>>> SearchChunks([FromBody] ChunkSearchRequest request, CancellationToken cancellationToken)
+    {
+        var result = await searchService.SearchDocumentChunksAsync(request.ToApplicationModel(), cancellationToken);
         return Ok(result.ToPagedResponse(item => item.ToDto()));
     }
 }

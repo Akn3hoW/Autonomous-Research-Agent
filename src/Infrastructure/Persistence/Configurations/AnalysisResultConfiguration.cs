@@ -8,6 +8,7 @@ public sealed class AnalysisResultConfiguration : IEntityTypeConfiguration<Analy
 {
     public void Configure(EntityTypeBuilder<AnalysisResult> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("analysis_results");
 
         builder.HasKey(x => x.Id);

@@ -13,7 +13,13 @@ public sealed record JobModel(
     Guid? TargetEntityId,
     string? CreatedBy,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    Guid? ParentJobId = null,
+    int? RetryCount = null,
+    DateTimeOffset? LastAttemptAt = null,
+    JsonNode? RetryPolicy = null,
+    List<Guid>? DependsOnJobIds = null,
+    int? WorkflowStep = null);
 
 public sealed record JobQuery(
     int PageNumber = 1,
@@ -25,9 +31,11 @@ public sealed record CreateJobCommand(
     JobType Type,
     JsonNode? Payload,
     Guid? TargetEntityId,
-    string? CreatedBy);
+    string? CreatedBy,
+    Guid? ParentJobId = null,
+    List<Guid>? DependsOnJobIds = null,
+    int? WorkflowStep = null);
 
 public sealed record RetryJobCommand(
     string? RequestedBy,
     string? Reason);
-

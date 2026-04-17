@@ -12,6 +12,7 @@ public sealed record PaperListItemDto(
     int CitationCount,
     string Source,
     string Status,
+    IReadOnlyCollection<string> Tags,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
@@ -28,6 +29,7 @@ public sealed record PaperDetailDto(
     string Source,
     string Status,
     JsonNode? Metadata,
+    IReadOnlyCollection<string> Tags,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
@@ -40,6 +42,7 @@ public sealed class PaperQueryRequest
     public string? Venue { get; init; }
     public string? Source { get; init; }
     public string? Status { get; init; }
+    public string? Tag { get; init; }
     public string? SortBy { get; init; }
 
     [DefaultValue("desc")]
@@ -79,9 +82,26 @@ public sealed class ImportPapersRequest
     public List<string> Queries { get; init; } = [];
     public int Limit { get; init; } = 10;
     public bool StoreImportedPapers { get; init; } = true;
+    public string? Source { get; init; }
 }
 
 public sealed record ImportPapersResponse(
     IReadOnlyCollection<PaperDetailDto> Papers,
     int ImportedCount);
+
+public sealed record CitationGraphResponse(
+    IReadOnlyCollection<PaperNodeDto> Nodes,
+    IReadOnlyCollection<CitationEdgeDto> Edges);
+
+public sealed record PaperNodeDto(
+    int Id,
+    string Title,
+    int? Year,
+    int CitationCount,
+    bool IsInDatabase);
+
+public sealed record CitationEdgeDto(
+    int SourceId,
+    int TargetId,
+    string? Context);
 

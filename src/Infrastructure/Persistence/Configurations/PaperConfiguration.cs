@@ -8,6 +8,7 @@ public sealed class PaperConfiguration : IEntityTypeConfiguration<Paper>
 {
     public void Configure(EntityTypeBuilder<Paper> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("papers");
 
         builder.HasKey(x => x.Id);
@@ -31,6 +32,8 @@ public sealed class PaperConfiguration : IEntityTypeConfiguration<Paper>
         builder.HasIndex(x => x.Year);
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.Source);
+        builder.HasIndex(x => new { x.Status, x.UpdatedAt });
+        builder.HasIndex(x => new { x.Status, x.CreatedAt });
 
         builder.HasMany(x => x.Summaries)
             .WithOne(x => x.Paper)
@@ -38,6 +41,16 @@ public sealed class PaperConfiguration : IEntityTypeConfiguration<Paper>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(x => x.Embeddings)
+            .WithOne(x => x.Paper)
+            .HasForeignKey(x => x.PaperId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(x => x.Documents)
+            .WithOne(x => x.Paper)
+            .HasForeignKey(x => x.PaperId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(x => x.Concepts)
             .WithOne(x => x.Paper)
             .HasForeignKey(x => x.PaperId)
             .OnDelete(DeleteBehavior.Cascade);

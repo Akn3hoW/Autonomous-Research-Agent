@@ -1,0 +1,50 @@
+{
+  "name": "Autonomous Research Agent",
+  "short_name": "ARA",
+  "description": "AI-powered autonomous research agent for paper discovery, analysis, and synthesis",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#e53935",
+  "orientation": "any",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "research", "education"],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Search Papers",
+      "short_name": "Search",
+      "description": "Search the paper database",
+      "url": "/#/search",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "View Jobs",
+      "short_name": "Jobs",
+      "description": "Monitor background jobs",
+      "url": "/#/jobs",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "View Hypotheses",
+      "short_name": "Hypotheses",
+      "description": "Track research hypotheses",
+      "url": "/#/hypothesis-tracker",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

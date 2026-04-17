@@ -9,5 +9,7 @@ public sealed class JwtOptions
     public string? Issuer { get; set; }
     public string SigningKey { get; set; } = "replace-this-development-key-with-a-secure-value";
     public bool RequireHttpsMetadata { get; set; } = false;
+    public int AccessTokenExpirationMinutes { get; set; } = 15;
+    public int RefreshTokenExpirationDays { get; set; } = 7;
 }
 

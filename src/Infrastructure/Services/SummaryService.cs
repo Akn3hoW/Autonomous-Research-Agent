@@ -10,6 +10,7 @@ namespace AutonomousResearchAgent.Infrastructure.Services;
 
 public sealed class SummaryService(
     ApplicationDbContext dbContext,
+    IEmbeddingIndexingService embeddingIndexingService,
     ILogger<SummaryService> logger) : ISummaryService
 {
     public async Task<IReadOnlyCollection<SummaryModel>> ListForPaperAsync(Guid paperId, CancellationToken cancellationToken)
@@ -44,6 +45,7 @@ public sealed class SummaryService(
 
     public async Task<SummaryModel> CreateAsync(CreateSummaryCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var paperExists = await dbContext.Papers.AnyAsync(p => p.Id == command.PaperId, cancellationToken);
         if (!paperExists)
         {
@@ -57,10 +59,13 @@ public sealed class SummaryService(
             PromptVersion = command.PromptVersion.Trim(),
             Status = command.Status,
             SummaryJson = JsonNodeMapper.Serialize(command.Summary),
-            SearchText = command.SearchText
+            SearchText = command.SearchText,
+            AbTestSessionId = command.AbTestSessionId,
+            IsSelected = command.IsSelected
         };
 
         dbContext.PaperSummaries.Add(entity);
+        await embeddingIndexingService.UpsertSummaryAsync(entity, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Created summary {SummaryId} for paper {PaperId}", entity.Id, entity.PaperId);
@@ -69,6 +74,7 @@ public sealed class SummaryService(
 
     public async Task<SummaryModel> UpdateAsync(Guid summaryId, UpdateSummaryCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var entity = await dbContext.PaperSummaries.FirstOrDefaultAsync(s => s.Id == summaryId, cancellationToken)
             ?? throw new NotFoundException(nameof(PaperSummary), summaryId);
 
@@ -87,6 +93,7 @@ public sealed class SummaryService(
             entity.SearchText = command.SearchText;
         }
 
+        await embeddingIndexingService.UpsertSummaryAsync(entity, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Updated summary {SummaryId}", entity.Id);
 
@@ -95,6 +102,7 @@ public sealed class SummaryService(
 
     public async Task<SummaryModel> ReviewAsync(Guid summaryId, ReviewSummaryCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var entity = await dbContext.PaperSummaries.FirstOrDefaultAsync(s => s.Id == summaryId, cancellationToken)
             ?? throw new NotFoundException(nameof(PaperSummary), summaryId);
 
@@ -117,5 +125,15 @@ public sealed class SummaryService(
         logger.LogInformation("Reviewed summary {SummaryId} with status {Status}", entity.Id, entity.Status);
 
         return entity.ToModel();
+    }
+
+    public async Task DeleteAsync(Guid summaryId, CancellationToken cancellationToken)
+    {
+        var entity = await dbContext.PaperSummaries.FirstOrDefaultAsync(s => s.Id == summaryId, cancellationToken)
+            ?? throw new NotFoundException(nameof(PaperSummary), summaryId);
+
+        dbContext.PaperSummaries.Remove(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Deleted summary {SummaryId}", summaryId);
     }
 }

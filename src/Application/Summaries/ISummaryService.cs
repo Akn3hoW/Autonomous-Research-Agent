@@ -7,5 +7,6 @@ public interface ISummaryService
     Task<SummaryModel> CreateAsync(CreateSummaryCommand command, CancellationToken cancellationToken);
     Task<SummaryModel> UpdateAsync(Guid summaryId, UpdateSummaryCommand command, CancellationToken cancellationToken);
     Task<SummaryModel> ReviewAsync(Guid summaryId, ReviewSummaryCommand command, CancellationToken cancellationToken);
+    Task DeleteAsync(Guid summaryId, CancellationToken cancellationToken);
 }
 

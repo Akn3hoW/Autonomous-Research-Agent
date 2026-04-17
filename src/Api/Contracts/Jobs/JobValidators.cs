@@ -43,7 +43,7 @@ public sealed class CreateSummarizeJobRequestValidator : AbstractValidator<Creat
     public CreateSummarizeJobRequestValidator()
     {
         RuleFor(x => x.PaperId).NotEmpty();
-        RuleFor(x => x.ModelName).NotEmpty().MaximumLength(256);
+        RuleFor(x => x.ModelName).NotEmpty().MaximumLength(256).Equal("openrouter/hunter-alpha").WithMessage("Only openrouter/hunter-alpha is supported for automated summarization jobs.");
         RuleFor(x => x.PromptVersion).NotEmpty().MaximumLength(128);
     }
 }

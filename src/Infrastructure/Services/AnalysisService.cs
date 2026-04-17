@@ -2,8 +2,10 @@ using System.Text.Json.Nodes;
 using AutonomousResearchAgent.Application.Analysis;
 using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Jobs;
+using AutonomousResearchAgent.Application.Papers;
 using AutonomousResearchAgent.Domain.Entities;
 using AutonomousResearchAgent.Domain.Enums;
+using AutonomousResearchAgent.Infrastructure.External.OpenRouter;
 using AutonomousResearchAgent.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -13,33 +15,47 @@ namespace AutonomousResearchAgent.Infrastructure.Services;
 public sealed class AnalysisService(
     ApplicationDbContext dbContext,
     IJobService jobService,
+    IOpenRouterChatClient openRouterChatClient,
+    ISemanticScholarClient semanticScholarClient,
     ILogger<AnalysisService> logger) : IAnalysisService
 {
+    private const string ComparisonJsonSchema = """
+        Return valid JSON only.
+        Schema:
+        overlapSummary: string
+        contradictionHints: string[]
+        noveltyHints: string[]
+        commonThemes: string[]
+        fieldBridgingNotes: string
+        scoringMetadata: object
+        """;
+
     public async Task<AnalysisResultModel> ComparePapersAsync(ComparePapersCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var papers = await dbContext.Papers
             .AsNoTracking()
+            .Include(p => p.Documents)
+            .Include(p => p.Summaries)
             .Where(p => p.Id == command.LeftPaperId || p.Id == command.RightPaperId)
             .ToListAsync(cancellationToken);
 
         var left = papers.FirstOrDefault(p => p.Id == command.LeftPaperId) ?? throw new NotFoundException(nameof(Paper), command.LeftPaperId);
         var right = papers.FirstOrDefault(p => p.Id == command.RightPaperId) ?? throw new NotFoundException(nameof(Paper), command.RightPaperId);
 
-        var commonTheme = InferCommonTheme(left.Title, right.Title);
+        var systemPrompt = $"You are an expert scientific comparison analyst.\n{ComparisonJsonSchema}";
 
-        var resultNode = new JsonObject
-        {
-            ["overlapSummary"] = $"Both papers address adjacent themes around '{commonTheme}'.",
-            ["contradictionHints"] = new JsonArray(),
-            ["noveltyHints"] = new JsonArray(JsonValue.Create($"Citation delta: {Math.Abs(left.CitationCount - right.CitationCount)}")),
-            ["commonThemes"] = new JsonArray(JsonValue.Create(commonTheme)),
-            ["fieldBridgingNotes"] = $"{left.Venue ?? "Unknown venue"} vs {right.Venue ?? "Unknown venue"} suggests cross-field review potential.",
-            ["scoringMetadata"] = new JsonObject
-            {
-                ["yearDifference"] = Math.Abs((left.Year ?? 0) - (right.Year ?? 0)),
-                ["citationDifference"] = Math.Abs(left.CitationCount - right.CitationCount)
-            }
-        };
+        var userPrompt = $"""
+Compare these two papers and focus on transferable ideas, contradictions, and cross-industry insights.
+
+LEFT PAPER
+{QueryHelpers.FormatPaper(left)}
+
+RIGHT PAPER
+{QueryHelpers.FormatPaper(right)}
+""";
+
+        var resultNode = await openRouterChatClient.CreateJsonCompletionAsync(systemPrompt, userPrompt, cancellationToken);
 
         var entity = new AnalysisResult
         {
@@ -49,7 +65,7 @@ public sealed class AnalysisService(
                 ["leftPaperId"] = left.Id,
                 ["rightPaperId"] = right.Id
             }.ToJsonString(),
-            ResultJson = resultNode.ToJsonString(),
+            ResultJson = resultNode?.ToJsonString(),
             CreatedBy = command.RequestedBy
         };
 
@@ -62,22 +78,23 @@ public sealed class AnalysisService(
 
     public async Task<AnalysisResultModel> CompareFieldsAsync(CompareFieldsCommand command, CancellationToken cancellationToken)
     {
-        var leftCount = await CountPapersForFilterAsync(command.LeftFilter, cancellationToken);
-        var rightCount = await CountPapersForFilterAsync(command.RightFilter, cancellationToken);
+        ArgumentNullException.ThrowIfNull(command);
+        var leftPapers = await QueryPapersForFilter(command.LeftFilter, cancellationToken);
+        var rightPapers = await QueryPapersForFilter(command.RightFilter, cancellationToken);
 
-        var resultNode = new JsonObject
-        {
-            ["overlapSummary"] = $"Compared two filtered sets: '{command.LeftFilter}' vs '{command.RightFilter}'.",
-            ["contradictionHints"] = new JsonArray(),
-            ["noveltyHints"] = new JsonArray(JsonValue.Create("Use this baseline output as a handoff point for richer analysis pipelines.")),
-            ["commonThemes"] = new JsonArray(),
-            ["fieldBridgingNotes"] = "Future versions can enrich this with cross-field clustering and citation graph analysis.",
-            ["scoringMetadata"] = new JsonObject
-            {
-                ["leftCount"] = leftCount,
-                ["rightCount"] = rightCount
-            }
-        };
+        var systemPrompt = $"You are an expert scientific field-comparison analyst.\n{ComparisonJsonSchema}";
+
+        var userPrompt = $"""
+Compare these two research clusters.
+
+LEFT FILTER: {command.LeftFilter}
+{QueryHelpers.FormatPapers(leftPapers)}
+
+RIGHT FILTER: {command.RightFilter}
+{QueryHelpers.FormatPapers(rightPapers)}
+""";
+
+        var resultNode = await openRouterChatClient.CreateJsonCompletionAsync(systemPrompt, userPrompt, cancellationToken);
 
         var entity = new AnalysisResult
         {
@@ -87,7 +104,7 @@ public sealed class AnalysisService(
                 ["leftFilter"] = command.LeftFilter,
                 ["rightFilter"] = command.RightFilter
             }.ToJsonString(),
-            ResultJson = resultNode.ToJsonString(),
+            ResultJson = resultNode?.ToJsonString(),
             CreatedBy = command.RequestedBy
         };
 
@@ -100,13 +117,14 @@ public sealed class AnalysisService(
 
     public async Task<AnalysisJobStatusModel> GenerateInsightsAsync(GenerateInsightsCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var payload = new JsonObject
         {
             ["filter"] = command.Filter
         };
 
         var job = await jobService.CreateAsync(
-            new Application.Jobs.CreateJobCommand(JobType.Analysis, payload, null, command.RequestedBy),
+            new CreateJobCommand(JobType.Analysis, payload, null, command.RequestedBy),
             cancellationToken);
 
         var analysisResult = new AnalysisResult
@@ -140,19 +158,134 @@ public sealed class AnalysisService(
         return new AnalysisJobStatusModel(job.Id, job.Status, job.ErrorMessage, result?.ToModel());
     }
 
-    private async Task<int> CountPapersForFilterAsync(string filter, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<AnalysisResultModel>> GetAllAsync(CancellationToken cancellationToken)
     {
-        var pattern = QueryHelpers.ToILikePattern(filter);
-        return await dbContext.Papers.CountAsync(
-            p => EF.Functions.ILike(p.Title, pattern) || (p.Abstract != null && EF.Functions.ILike(p.Abstract, pattern)),
-            cancellationToken);
+        var results = await dbContext.AnalysisResults
+            .AsNoTracking()
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return results.Select(r => r.ToModel()).ToList();
     }
 
-    private static string InferCommonTheme(string leftTitle, string rightTitle)
+    public async Task DeleteAsync(Guid analysisResultId, CancellationToken cancellationToken)
     {
-        var leftWords = leftTitle.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var rightWords = rightTitle.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var entity = await dbContext.AnalysisResults.FirstOrDefaultAsync(r => r.Id == analysisResultId, cancellationToken)
+            ?? throw new NotFoundException(nameof(AnalysisResult), analysisResultId);
 
-        return leftWords.Intersect(rightWords, StringComparer.OrdinalIgnoreCase).FirstOrDefault() ?? "related research areas";
+        dbContext.AnalysisResults.Remove(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Deleted analysis result {AnalysisResultId}", analysisResultId);
+    }
+
+    public async Task<ResearchGapReportModel> IdentifyResearchGapAsync(IdentifyResearchGapCommand command, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        var corpusPapers = await dbContext.Papers
+            .AsNoTracking()
+            .Where(p => EF.Functions.ILike(p.Title, $"%{EscapeILikePattern(command.Topic)}%") || EF.Functions.ILike(p.Abstract ?? string.Empty, $"%{EscapeILikePattern(command.Topic)}%"))
+            .Take(50)
+            .ToListAsync(cancellationToken);
+
+        var corpusCoverage = new JsonObject
+        {
+            ["topic"] = command.Topic,
+            ["papersFound"] = corpusPapers.Count,
+            ["papers"] = new JsonArray(corpusPapers.Select(p => new JsonObject
+            {
+                ["id"] = p.Id.ToString(),
+                ["title"] = p.Title,
+                ["year"] = p.Year ?? 0,
+                ["venue"] = p.Venue ?? ""
+            }).ToArray())
+        };
+
+        var externalPapers = await semanticScholarClient.SearchPapersAsync([command.Topic], 20, cancellationToken);
+        var externalCoverage = new JsonObject
+        {
+            ["topic"] = command.Topic,
+            ["papersFound"] = externalPapers.Count,
+            ["papers"] = new JsonArray(externalPapers.Select(p => new JsonObject
+            {
+                ["externalId"] = p.SemanticScholarId,
+                ["title"] = p.Title,
+                ["year"] = p.Year ?? 0,
+                ["venue"] = p.Venue ?? "",
+                ["citationCount"] = p.CitationCount
+            }).ToArray())
+        };
+
+        var systemPrompt = """
+You are an expert research gap analyst. Return valid JSON only.
+Schema:
+understudiedAngles: string[]
+researchOpportunities: string[]
+suggestedQueries: string[]
+coverageGaps: object
+comparisonSummary: string
+""";
+
+        var userPrompt = $"""
+Analyze research gaps for topic: {command.Topic}
+
+CORPUS COVERAGE (papers in our system):
+{corpusCoverage.ToJsonString()}
+
+EXTERNAL COVERAGE (papers from Semantic Scholar):
+{externalCoverage.ToJsonString()}
+
+Identify:
+1. What angles are understudied in our corpus vs external literature
+2. Research opportunities
+3. Suggested follow-up queries
+4. Coverage gaps
+""";
+
+        var llmResult = await openRouterChatClient.CreateJsonCompletionAsync(systemPrompt, userPrompt, cancellationToken);
+
+        var gapAnalysisJson = llmResult?["understudiedAngles"]?.ToJsonString() ?? "[]";
+        var suggestedQueriesJson = llmResult?["suggestedQueries"]?.ToJsonString() ?? "[]";
+
+        var entity = new ResearchGap
+        {
+            Topic = command.Topic,
+            GapAnalysisJson = gapAnalysisJson,
+            CorpusCoverageJson = corpusCoverage.ToJsonString(),
+            ExternalCoverageJson = externalCoverage.ToJsonString(),
+            SuggestedQueriesJson = suggestedQueriesJson,
+            CreatedBy = command.RequestedBy
+        };
+
+        dbContext.ResearchGaps.Add(entity);
+
+        var analysisResult = new AnalysisResult
+        {
+            AnalysisType = AnalysisType.ResearchGap,
+            InputSetJson = new JsonObject { ["topic"] = command.Topic }.ToJsonString(),
+            ResultJson = llmResult?.ToJsonString(),
+            CreatedBy = command.RequestedBy
+        };
+        dbContext.AnalysisResults.Add(analysisResult);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Created research gap analysis for topic {Topic}", command.Topic);
+
+        return new ResearchGapReportModel(
+            entity.Id,
+            entity.Topic,
+            entity.GapAnalysisJson is not null ? JsonNode.Parse(entity.GapAnalysisJson) : null,
+            entity.CorpusCoverageJson is not null ? JsonNode.Parse(entity.CorpusCoverageJson) : null,
+            entity.ExternalCoverageJson is not null ? JsonNode.Parse(entity.ExternalCoverageJson) : null,
+            entity.SuggestedQueriesJson is not null ? JsonNode.Parse(entity.SuggestedQueriesJson) : null,
+            entity.CreatedBy,
+            entity.CreatedAt);
+    }
+
+    private Task<List<Paper>> QueryPapersForFilter(string filter, CancellationToken cancellationToken) =>
+        QueryHelpers.QueryPapersForFilterAsync(dbContext.Papers, filter, 10, cancellationToken);
+
+    private static string EscapeILikePattern(string pattern)
+    {
+        return pattern.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
     }
 }

@@ -1,0 +1,120 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17.2
+    container_name: ara-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: autonomous_research_agent
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - ara-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: ara-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ara-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  embedding-service:
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile
+    container_name: ara-embedding-service
+    ports:
+      - "8001:8001"
+    environment:
+      ARA_EMBED_HOST: "0.0.0.0"
+      ARA_EMBED_PORT: "8001"
+      ARA_EMBED_MODEL: "Snowflake/snowflake-arctic-embed-m-v1.5"
+      ARA_EMBED_DEVICE: "cpu"
+      ARA_EMBED_MAX_CONCURRENT: "3"
+      ARA_EMBED_QUEUE_SIZE: "50"
+    volumes:
+      - embedding_model_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ara-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Api/Dockerfile
+    container_name: ara-api
+    ports:
+      - "8080:8080"
+    environment:
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=autonomous_research_agent;Username=postgres;Password=${POSTGRES_PASSWORD};EnableRetryOnFailure=True"
+      ConnectionStrings__Redis: "Host=redis;Port=6379;DefaultDatabase=0;Password=${REDIS_PASSWORD}"
+      CacheOptions__ConnectionString: "Host=redis;Port=6379;DefaultDatabase=0;Password=${REDIS_PASSWORD}"
+      CacheOptions__DefaultTtl: "00:05:00"
+      LocalEmbedding__BaseUrl: "http://embedding-service:8001"
+      ASPNETCORE_ENVIRONMENT: "${ASPNETCORE_ENVIRONMENT:-Production}"
+    restart: unless-stopped
+    networks:
+      - ara-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      embedding-service:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+volumes:
+  postgres_data:
+  embedding_model_cache:
+  redis_data:
+
+networks:
+  ara-network:
+    driver: bridge

@@ -1,0 +1,182 @@
+Build started 2026-04-16 7:23:29 p.m..
+     1>Project "/home/alex/git-repos/Autonomous-Research-Agent/AutonomousResearchAgent.sln" on node 1 (VSTest target(s)).
+     1>ValidateSolutionConfiguration:
+         Building solution configuration "Release|Any CPU".
+Test run for /home/alex/git-repos/Autonomous-Research-Agent/tests/Infrastructure.Tests/bin/Release/net9.0/Infrastructure.Tests.dll (.NETCoreApp,Version=v9.0)
+VSTest version 17.14.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2+699d445a1a (64-bit .NET 9.0.14)
+[xUnit.net 00:00:00.07]   Discovering: Infrastructure.Tests
+[xUnit.net 00:00:00.13]   Discovered:  Infrastructure.Tests
+[xUnit.net 00:00:00.14]   Starting:    Infrastructure.Tests
+  Passed Infrastructure.Tests.VectorMathTests.CosineSimilarity_returns_0_for_empty_vectors [10 ms]
+  Passed Infrastructure.Tests.QueryHelpersTests.Truncate_truncates_when_over_max_length [10 ms]
+  Passed Infrastructure.Tests.VectorMathTests.CosineSimilarity_returns_1_for_identical_vectors [< 1 ms]
+  Passed Infrastructure.Tests.VectorMathTests.CosineSimilarity_returns_0_for_orthogonal_vectors [< 1 ms]
+  Passed Infrastructure.Tests.VectorMathTests.CosineSimilarity_returns_negative_for_opposite_vectors [< 1 ms]
+  Passed Infrastructure.Tests.VectorMathTests.CosineSimilarity_returns_0_for_mismatched_lengths [< 1 ms]
+  Passed Infrastructure.Tests.PaperDocumentJobPayloadTests.Create_returns_json_with_all_required_fields [18 ms]
+  Passed Infrastructure.Tests.PaperDocumentJobPayloadTests.Create_handles_null_optional_fields [< 1 ms]
+  Passed Infrastructure.Tests.PaperDocumentJobPayloadTests.Create_returns_valid_json_object [< 1 ms]
+  Passed Infrastructure.Tests.QueryHelpersTests.FormatPaper_uses_latest_summary [22 ms]
+  Passed Infrastructure.Tests.QueryHelpersTests.Truncate_returns_null_for_null_input [< 1 ms]
+  Passed Infrastructure.Tests.QueryHelpersTests.FormatPapers_formats_multiple_papers [< 1 ms]
+  Passed Infrastructure.Tests.QueryHelpersTests.FormatPaper_handles_paper_with_no_documents [< 1 ms]
+  Passed Infrastructure.Tests.QueryHelpersTests.ToILikePattern_escapes_percent_and_underscore [< 1 ms]
+  Passed Infrastructure.Tests.QueryHelpersTests.FormatPaper_truncates_extracted_text_to_2500_chars [1 ms]
+  Passed Infrastructure.Tests.QueryHelpersTests.Truncate_returns_original_when_under_max_length [< 1 ms]
+  Passed Infrastructure.Tests.QueryHelpersTests.ToILikePattern_wraps_value_in_percent_wildcards [< 1 ms]
+  Passed Infrastructure.Tests.QueryHelpersTests.Truncate_returns_empty_for_empty_string [< 1 ms]
+  Passed Infrastructure.Tests.QueryHelpersTests.FormatPaper_includes_all_fields [< 1 ms]
+  Passed Infrastructure.Tests.LocalEmbeddingHttpClientTests.GenerateEmbeddingAsync_returns_embedding_when_response_vector_length_matches_configured_dimensions [81 ms]
+  Passed Infrastructure.Tests.LocalEmbeddingHttpClientTests.GenerateEmbeddingAsync_throws_when_response_vector_length_does_not_match_configured_dimensions [11 ms]
+  Passed Infrastructure.Tests.ControllerTests.JobsController_CreateSummarizeJob_returns_created [125 ms]
+  Passed Infrastructure.Tests.ControllerTests.SearchController_Search_returns_ok_with_paged_results [10 ms]
+  Passed Infrastructure.Tests.ControllerTests.PaperDocumentsController_GetDocuments_returns_ok_with_documents_list [9 ms]
+  Passed Infrastructure.Tests.ControllerTests.SearchController_SemanticSearch_returns_ok_with_paged_results [3 ms]
+  Passed Infrastructure.Tests.ControllerTests.JobsController_RetryJob_returns_ok [4 ms]
+  Passed Infrastructure.Tests.JwtAuthMiddlewareTests.InvokeAsync_logs_error_on_exception [140 ms]
+  Passed Infrastructure.Tests.JwtAuthMiddlewareTests.InvokeAsync_calls_next_when_no_exception [< 1 ms]
+  Passed Infrastructure.Tests.JwtAuthMiddlewareTests.InvokeAsync_returns_problem_details_json [2 ms]
+  Passed Infrastructure.Tests.JwtAuthMiddlewareTests.InvokeAsync_handles_invalid_state_exception [1 ms]
+  Passed Infrastructure.Tests.JwtAuthMiddlewareTests.InvokeAsync_handles_generic_exception_as_500 [< 1 ms]
+  Passed Infrastructure.Tests.JwtAuthMiddlewareTests.InvokeAsync_does_not_expose_generic_exception_message_to_client [< 1 ms]
+  Passed Infrastructure.Tests.ControllerTests.SummariesController_GetSummariesForPaper_returns_ok_with_summaries_list [13 ms]
+  Passed Infrastructure.Tests.JwtAuthMiddlewareTests.InvokeAsync_handles_external_dependency_exception [< 1 ms]
+  Passed Infrastructure.Tests.JwtAuthMiddlewareTests.InvokeAsync_handles_validation_exception [5 ms]
+[xUnit.net 00:00:00.38]     Infrastructure.Tests.SearchServiceTests.HybridSearchAsync_with_ranked_results_computes_rrf_scores_correctly [SKIP]
+[xUnit.net 00:00:00.38]       Requires PostgreSQL - HybridSearchAsync uses LoadSemanticCandidatesAsync which has LINQ expressions that in-memory provider cannot translate
+[xUnit.net 00:00:00.38]     Infrastructure.Tests.SearchServiceTests.SearchDocumentChunksAsync_returns_chunk_results [SKIP]
+[xUnit.net 00:00:00.38]       Requires PostgreSQL - SearchChunksInMemoryAsync uses complex include/where that in-memory provider cannot translate
+[xUnit.net 00:00:00.39]     Infrastructure.Tests.SearchServiceTests.SemanticSearchAsync_ranks_papers_using_best_embedding_across_abstract_and_summary_vectors [SKIP]
+[xUnit.net 00:00:00.39]       Requires PostgreSQL - LoadSemanticCandidatesAsync uses LINQ expressions that in-memory provider cannot translate
+[xUnit.net 00:00:00.39]     Infrastructure.Tests.SearchServiceTests.HybridSearchAsync_uses_rrf_to_fuse_keyword_and_semantic_rankings [SKIP]
+[xUnit.net 00:00:00.39]       Requires PostgreSQL - HybridSearchAsync uses LoadSemanticCandidatesAsync which has LINQ expressions that in-memory provider cannot translate
+  Passed Infrastructure.Tests.ControllerTests.SummariesController_GetSummary_returns_ok [6 ms]
+  Passed Infrastructure.Tests.JwtAuthMiddlewareTests.InvokeAsync_handles_not_found_exception [< 1 ms]
+  Passed Infrastructure.Tests.JwtAuthMiddlewareTests.InvokeAsync_handles_conflict_exception [< 1 ms]
+  Skipped Infrastructure.Tests.SearchServiceTests.HybridSearchAsync_with_ranked_results_computes_rrf_scores_correctly [1 ms]
+  Skipped Infrastructure.Tests.SearchServiceTests.SearchDocumentChunksAsync_returns_chunk_results [1 ms]
+  Skipped Infrastructure.Tests.SearchServiceTests.SemanticSearchAsync_ranks_papers_using_best_embedding_across_abstract_and_summary_vectors [1 ms]
+  Skipped Infrastructure.Tests.SearchServiceTests.HybridSearchAsync_uses_rrf_to_fuse_keyword_and_semantic_rankings [1 ms]
+  Passed Infrastructure.Tests.ControllerTests.SearchController_HybridSearch_returns_ok_with_paged_results [3 ms]
+info: AutonomousResearchAgent.Infrastructure.BackgroundJobs.AutonomousJobRunner[0]
+      Completed job a06cd05a-21e3-4e07-a133-8fd5a3c5e1a5 (ImportPapers)
+info: AutonomousResearchAgent.Infrastructure.BackgroundJobs.AutonomousJobRunner[0]
+      Completed job f1a04952-3116-490e-ae2c-ff187b5752d2 (ProcessPaperDocument)
+  Passed Infrastructure.Tests.AutonomousJobRunnerTests.RunAsync_ImportPapers_uses_default_storeImportedPapers_when_not_specified [207 ms]
+  Passed Infrastructure.Tests.ControllerTests.PapersController_UpdatePaper_returns_ok_with_updated_paper [8 ms]
+  Passed Infrastructure.Tests.ControllerTests.PaperDocumentsController_CreateDocument_returns_created [3 ms]
+  Passed Infrastructure.Tests.ControllerTests.PaperDocumentsController_GetDocument_returns_ok [2 ms]
+  Passed Infrastructure.Tests.ControllerTests.PapersController_CreatePaper_returns_created_with_paper_detail [4 ms]
+  Passed Infrastructure.Tests.ControllerTests.PaperDocumentsController_QueueProcessing_returns_ok [3 ms]
+  Passed Infrastructure.Tests.ControllerTests.SummariesController_ApproveSummary_returns_ok [3 ms]
+  Passed Infrastructure.Tests.AutonomousJobRunnerTests.RunAsync_ProcessPaperDocument_job_calls_processing_service [22 ms]
+info: AutonomousResearchAgent.Infrastructure.BackgroundJobs.AutonomousJobRunner[0]
+      Completed job eb578777-29e5-4ae2-b948-538a979a0b3e (SummarizePaper)
+  Passed Infrastructure.Tests.ControllerTests.JobsController_GetJobs_returns_ok_with_paged_response [4 ms]
+  Passed Infrastructure.Tests.AutonomousJobRunnerTests.RunAsync_SummarizePaper_throws_when_paperId_missing [6 ms]
+  Passed Infrastructure.Tests.ControllerTests.PapersController_GetPapers_returns_ok_with_paged_response [7 ms]
+  Passed Infrastructure.Tests.ControllerTests.JobsController_GetJob_returns_ok_with_job [2 ms]
+  Passed Infrastructure.Tests.ControllerTests.PapersController_GetPaper_returns_ok_with_paper_detail [2 ms]
+  Passed Infrastructure.Tests.AutonomousJobRunnerTests.RunAsync_SummarizePaper_sets_result_with_summary_id [10 ms]
+  Passed Infrastructure.Tests.ControllerTests.SummariesController_UpdateSummary_returns_ok [3 ms]
+  Passed Infrastructure.Tests.ControllerTests.SummariesController_CreateSummary_returns_created [2 ms]
+  Passed Infrastructure.Tests.ControllerTests.SummariesController_RejectSummary_returns_ok [2 ms]
+  Passed Infrastructure.Tests.ControllerTests.JobsController_CreateImportJob_returns_created [2 ms]
+  Passed Infrastructure.Tests.PaperDocumentProcessingServiceTests.LocalDocumentTextExtractor_extracts_plain_text_bytes [3 ms]
+  Passed Infrastructure.Tests.DatabaseMigrationTests.ApplicationDbContext_job_status_transitions_are_valid [1 s]
+  Passed Infrastructure.Tests.PaperDocumentServiceTests.QueueProcessingAsync_when_already_queued_throws_conflict [1 s]
+  Passed Infrastructure.Tests.DatabaseMigrationTests.ApplicationDbContext_can_query_with_tracking [103 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.RetryAsync_updates_created_by_when_requested_by_is_provided [957 ms]
+  Passed Infrastructure.Tests.DatabaseMigrationTests.ApplicationDbContext_can_be_created_with_in_memory_database [2 ms]
+  Passed Infrastructure.Tests.DatabaseMigrationTests.ApplicationDbContext_applies_audit_information_on_save [2 ms]
+  Passed Infrastructure.Tests.DatabaseMigrationTests.ApplicationDbContext_can_save_and_retrieve_entities [3 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.RetryAsync_logs_information [12 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.JobRetryPolicy_ShouldRetry_returns_true_for_service_unavailable [< 1 ms]
+  Passed Infrastructure.Tests.DatabaseJobWorkerTests.StartAsync_claims_and_processes_queued_job [1 s]
+[xUnit.net 00:00:01.42]     Infrastructure.Tests.DatabaseMigrationTests.ApplicationDbContext_ignores_vector_property_on_non_postgres_provider [SKIP]
+[xUnit.net 00:00:01.42]       In-memory provider does not apply pgvector value converters when reading back entities, so this test cannot work as designed
+  Passed Infrastructure.Tests.DatabaseMigrationTests.ApplicationDbContext_can_filter_with_where_clause [14 ms]
+  Skipped Infrastructure.Tests.DatabaseMigrationTests.ApplicationDbContext_ignores_vector_property_on_non_postgres_provider [1 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.UpdateRetryStatusAsync_updates_retry_fields [11 ms]
+  Passed Infrastructure.Tests.DatabaseJobWorkerTests.StopAsync_cancels_execution_gracefully [10 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.RetryAsync_throws_when_job_status_is_queued [3 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.RetryAsync_resets_cancelled_job_to_queued [3 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.JobRetryPolicy_GetDelayForAttempt_returns_exponential_backoff [12 ms]
+info: AutonomousResearchAgent.Infrastructure.BackgroundJobs.AutonomousJobRunner[0]
+      Completed job 64e2f4a3-46e0-4a9d-8b8b-e51ede52f16a (Analysis)
+  Passed Infrastructure.Tests.JobRetryLogicTests.JobRetryPolicy_ShouldRetry_returns_false_after_max_attempts [< 1 ms]
+  Passed Infrastructure.Tests.DatabaseJobWorkerTests.StartAsync_sets_job_status_to_completed_when_job_runs_successfully [42 ms]
+  Passed Infrastructure.Tests.DatabaseMigrationTests.ApplicationDbContext_can_delete_entity [60 ms]
+  Passed Infrastructure.Tests.PaperDocumentProcessingServiceTests.ProcessAsync_clears_stale_extracted_text_when_ocr_fails [292 ms]
+  Passed Infrastructure.Tests.AutonomousJobRunnerTests.RunAsync_Analysis_job_calls_openrouter_client [1 s]
+  Passed Infrastructure.Tests.JobRetryLogicTests.GetJobsByParentIdAsync_returns_child_jobs [55 ms]
+info: AutonomousResearchAgent.Infrastructure.BackgroundJobs.AutonomousJobRunner[0]
+      Completed job 82225f7c-7316-4441-9228-512318fba9b4 (ImportPapers)
+info: AutonomousResearchAgent.Infrastructure.BackgroundJobs.AutonomousJobRunner[0]
+      Completed job 43e7785b-87e7-4a4a-b12f-cbf111dd9c0a (ImportPapers)
+  Passed Infrastructure.Tests.PaperAndSummaryEmbeddingIntegrationTests.CreateAsync_indexes_summary_search_text [1 s]
+  Passed Infrastructure.Tests.AutonomousJobRunnerTests.RunAsync_ImportPapers_uses_default_limit_when_not_specified [5 ms]
+  Passed Infrastructure.Tests.EmbeddingIndexingServiceTests.UpsertPaperAbstractAsync_creates_embedding_for_paper_abstract [1 s]
+  Passed Infrastructure.Tests.PaperDocumentServiceTests.ImportAsync_attaches_open_access_document_and_queues_processing_job [120 ms]
+  Passed Infrastructure.Tests.AutonomousJobRunnerTests.RunAsync_ImportPapers_sets_result_with_import_count [15 ms]
+info: AutonomousResearchAgent.Infrastructure.BackgroundJobs.AutonomousJobRunner[0]
+      Completed job 7a26efbb-f848-47e9-ad4f-d51551be3ed3 (SummarizePaper)
+  Passed Infrastructure.Tests.DatabaseMigrationTests.ApplicationDbContext_tracks_modified_entities [40 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.RetryAsync_clears_error_message_and_result [22 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.JobRetryPolicy_ShouldRetry_returns_true_for_rate_limit [< 1 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.RetryAsync_resets_failed_job_to_queued [2 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.RetryAsync_throws_when_job_status_is_not_failed_or_cancelled [3 ms]
+  Passed Infrastructure.Tests.AutonomousJobRunnerTests.RunAsync_SummarizePaper_uses_default_model_and_promptVersion_when_not_specified [11 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.RetryAsync_throws_when_job_not_found [2 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.JobRetryPolicy_IsServiceUnavailableException_detects_503 [< 1 ms]
+  Passed Infrastructure.Tests.EmbeddingIndexingServiceTests.UpsertSummaryAsync_creates_embedding_for_summary_search_text [16 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.JobRetryPolicy_IsRateLimitException_detects_429 [< 1 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.JobRetryPolicy_CreateRetryPolicyData_creates_valid_data [1 ms]
+  Passed Infrastructure.Tests.AutonomousJobRunnerTests.RunAsync_Unsupported_job_type_throws [7 ms]
+  Passed Infrastructure.Tests.PaperDocumentProcessingServiceTests.ProcessAsync_uses_ocr_when_requires_ocr_is_true_even_if_native_text_exists [37 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.RetryAsync_clears_retry_count_and_retry_policy [4 ms]
+info: AutonomousResearchAgent.Infrastructure.BackgroundJobs.AutonomousJobRunner[0]
+      Completed job 41bda78a-a932-4278-81b3-6f86b269b6df (ImportPapers)
+  Passed Infrastructure.Tests.PaperAndSummaryEmbeddingIntegrationTests.UpdateAsync_reindexes_summary_when_search_text_changes [39 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.RetryAsync_throws_when_job_status_is_running [2 ms]
+  Passed Infrastructure.Tests.PaperDocumentServiceTests.CreateAsync_creates_pending_document_for_existing_paper [23 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.JobRetryPolicy_ShouldRetry_returns_false_for_operation_cancelled [< 1 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.JobRetryPolicy_IsNetworkError_detects_network_exceptions [< 1 ms]
+  Passed Infrastructure.Tests.AutonomousJobRunnerTests.RunAsync_ImportPapers_job_calls_paper_service [21 ms]
+info: AutonomousResearchAgent.Infrastructure.BackgroundJobs.AutonomousJobRunner[0]
+      Completed job e50ee7e1-b0c5-4341-afa2-5629f107e051 (Analysis)
+info: AutonomousResearchAgent.Infrastructure.BackgroundJobs.AutonomousJobRunner[0]
+      Completed job da4de2b1-9c70-454f-a656-f0b4c3187e9d (SummarizePaper)
+  Passed Infrastructure.Tests.JobRetryLogicTests.JobRetryPolicy_GetDelayForAttempt_respects_max_delay [18 ms]
+  Passed Infrastructure.Tests.PaperDocumentServiceTests.QueueProcessingAsync_sets_document_to_queued_and_creates_job [19 ms]
+  Passed Infrastructure.Tests.JobRetryLogicTests.RetryAsync_preserves_created_by_when_requested_by_is_null [2 ms]
+  Passed Infrastructure.Tests.AutonomousJobRunnerTests.RunAsync_ProcessPaperDocument_throws_when_documentId_missing [3 ms]
+  Passed Infrastructure.Tests.EmbeddingIndexingServiceTests.UpsertPaperAbstractAsync_updates_existing_embedding_in_place [31 ms]
+  Passed Infrastructure.Tests.AutonomousJobRunnerTests.RunAsync_invalid_payload_json_throws [4 ms]
+  Passed Infrastructure.Tests.AutonomousJobRunnerTests.RunAsync_Analysis_sets_result_with_analysis_output [4 ms]
+  Passed Infrastructure.Tests.AutonomousJobRunnerTests.RunAsync_SummarizePaper_job_calls_services [7 ms]
+  Passed Infrastructure.Tests.PaperAndSummaryEmbeddingIntegrationTests.CreateAsync_indexes_new_paper_abstract [43 ms]
+  Passed Infrastructure.Tests.PaperAndSummaryEmbeddingIntegrationTests.UpdateAsync_reindexes_paper_after_abstract_change [12 ms]
+  Passed Infrastructure.Tests.PaperDocumentProcessingServiceTests.ProcessAsync_invokes_pdf_ocr_with_force_ocr_without_skip_text [71 ms]
+  Passed Infrastructure.Tests.PaperDocumentProcessingServiceTests.ProcessAsync_uses_ocr_when_native_extraction_is_missing [6 ms]
+  Passed Infrastructure.Tests.PaperDocumentProcessingServiceTests.ProcessAsync_uses_native_extraction_without_ocr_when_text_is_sufficient [3 ms]
+[xUnit.net 00:00:04.55]   Finished:    Infrastructure.Tests
+  Passed Infrastructure.Tests.DatabaseJobWorkerTests.ExecuteAsync_does_not_process_anything_when_no_jobs_queued [3 s]
+  Passed Infrastructure.Tests.DatabaseJobWorkerTests.StartAsync_sets_job_status_to_failed_when_job_throws [9 ms]
+
+Test Run Successful.
+Total tests: 125
+     Passed: 120
+    Skipped: 5
+ Total time: 5.1188 Seconds
+     1>Done Building Project "/home/alex/git-repos/Autonomous-Research-Agent/AutonomousResearchAgent.sln" (VSTest target(s)).
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:06.52
