@@ -22,6 +22,8 @@ public sealed class PaperService(
 {
     public async Task<PagedResult<PaperListItem>> ListAsync(PaperQuery query, Guid? userId, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(query);
+
         var papersQuery = dbContext.Papers.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(query.Query))
@@ -109,6 +111,8 @@ public sealed class PaperService(
 
     public async Task<PaperDetail> CreateAsync(CreatePaperCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         if (!string.IsNullOrWhiteSpace(command.Doi))
         {
             var duplicate = await dbContext.Papers.AnyAsync(
@@ -152,6 +156,8 @@ public sealed class PaperService(
 
     public async Task<PaperDetail> UpdateAsync(Guid id, UpdatePaperCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var entity = await dbContext.Papers.FirstOrDefaultAsync(p => p.Id == id, cancellationToken)
             ?? throw new NotFoundException(nameof(Paper), id);
 
@@ -214,6 +220,8 @@ public sealed class PaperService(
 
     public async Task<ImportPapersResult> ImportAsync(ImportPapersCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var imported = command.Source?.ToLowerInvariant() switch
         {
             "arxiv" => await ImportFromArxivAsync(command.Queries, cancellationToken),

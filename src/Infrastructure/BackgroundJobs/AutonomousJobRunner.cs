@@ -26,6 +26,11 @@ namespace AutonomousResearchAgent.Infrastructure.BackgroundJobs;
 /// <remarks>
 /// <para>This runner implements the <see cref="IJobRunner"/> interface and processes jobs from the database.
 /// It is typically invoked by <see cref="DatabaseJobWorker"/> or other job scheduling mechanisms.</para>
+/// <para>
+/// NOTE: LLM prompts (systemPrompt, userPrompt) are currently hardcoded in methods like RunGenerateInsightsAsync,
+/// RunAnalyzePaperAsync, RunGenerateReportAsync, and RunExtractConceptsAsync. These should be moved to
+/// configuration or a separate prompts file for easier customization and externalization.
+/// </para>
 /// <para>Supported job types:</para>
 /// <list type="bullet">
 ///   <item><description>ImportPapers - Bulk import papers from Semantic Scholar using search queries</description></item>
@@ -85,6 +90,8 @@ public sealed class AutonomousJobRunner(
     /// <exception cref="InvalidOperationException">Thrown when payload is malformed or job type is unsupported.</exception>
     public async Task RunAsync(Job job, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(job);
+
         using var activity = ActivitySource.StartActivity("JobExecution", ActivityKind.Internal);
         activity?.SetTag("job.id", job.Id.ToString());
         activity?.SetTag("job.type", job.Type.ToString());
@@ -150,6 +157,7 @@ public sealed class AutonomousJobRunner(
         catch (Exception ex)
         {
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.SetTag("exception", ex);
             throw;
         }
     }
@@ -308,46 +316,52 @@ confidence: number
 
     private async Task ProcessDocumentChunksAsync(Domain.Entities.PaperDocument document, CancellationToken cancellationToken)
     {
-        var existingChunks = await dbContext.DocumentChunks
-            .Where(c => c.PaperDocumentId == document.Id)
-            .ToListAsync(cancellationToken);
-        dbContext.DocumentChunks.RemoveRange(existingChunks);
-
-        var existingEmbeddings = await dbContext.PaperEmbeddings
-            .Where(e => e.DocumentChunkId != null && e.EmbeddingType == EmbeddingType.DocumentChunk &&
-                dbContext.DocumentChunks.Any(c => c.Id == e.DocumentChunkId && c.PaperDocumentId == document.Id))
-            .ToListAsync(cancellationToken);
-        dbContext.PaperEmbeddings.RemoveRange(existingEmbeddings);
-
         var textChunks = textChunkingService.ChunkText(document.ExtractedText!);
         if (textChunks.Count == 0)
         {
             return;
         }
 
-        var chunks = textChunks.Select(tc => new DocumentChunk
-        {
-            PaperDocumentId = document.Id,
-            ChunkIndex = tc.Index,
-            Text = tc.Text,
-            TextLength = tc.Text.Length,
-            StartPosition = tc.StartPosition,
-            EndPosition = tc.EndPosition
-        }).ToList();
-
-        dbContext.DocumentChunks.AddRange(chunks);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
+            var existingChunkIds = await dbContext.DocumentChunks
+                .Where(c => c.PaperDocumentId == document.Id)
+                .Select(c => c.Id)
+                .ToListAsync(cancellationToken);
+
+            var existingEmbeddingChunkIds = await dbContext.PaperEmbeddings
+                .Where(e => e.DocumentChunkId != null && e.EmbeddingType == EmbeddingType.DocumentChunk &&
+                    existingChunkIds.Contains(e.DocumentChunkId.Value))
+                .Select(e => e.DocumentChunkId)
+                .ToListAsync(cancellationToken);
+
+            var chunks = textChunks.Select(tc => new DocumentChunk
+            {
+                PaperDocumentId = document.Id,
+                ChunkIndex = tc.Index,
+                Text = tc.Text,
+                TextLength = tc.Text.Length,
+                StartPosition = tc.StartPosition,
+                EndPosition = tc.EndPosition
+            }).ToList();
+
+            dbContext.DocumentChunks.AddRange(chunks);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
             await embeddingIndexingService.UpsertDocumentChunksAsync(chunks, cancellationToken);
             _logger.LogInformation("Created {ChunkCount} chunks and embeddings for document {DocumentId}", chunks.Count, document.Id);
+
+            dbContext.PaperEmbeddings.RemoveRange(dbContext.PaperEmbeddings.Where(e => e.DocumentChunkId != null && existingEmbeddingChunkIds.Contains(e.DocumentChunkId.Value)));
+            dbContext.DocumentChunks.RemoveRange(dbContext.DocumentChunks.Where(c => c.PaperDocumentId == document.Id && existingChunkIds.Contains(c.Id)));
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Embedding indexing failed for document {DocumentId}. Chunks exist but embeddings are missing. Error: {ErrorMessage}", document.Id, ex.Message);
-            dbContext.DocumentChunks.RemoveRange(chunks);
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.RollbackAsync(cancellationToken);
+            _logger.LogError(ex, "Embedding indexing failed for document {DocumentId}. Error: {ErrorMessage}", document.Id, ex.Message);
             throw new InvalidStateException($"Embedding indexing failed for document {document.Id}: {ex.Message}");
         }
     }
@@ -417,11 +431,21 @@ confidence: number
             .OrderBy(j => j.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        foreach (var childJob in childJobs)
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        try
         {
-            childJob.Status = JobStatus.Running;
+            foreach (var childJob in childJobs)
+            {
+                childJob.Status = JobStatus.Running;
+            }
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
-        await dbContext.SaveChangesAsync(cancellationToken);
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
 
         var parentActivity = Activity.Current?.Context ?? default;
         var completedChildJobs = new List<Job>();
@@ -445,16 +469,26 @@ confidence: number
                 catch (Exception ex)
                 {
                     childActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-                    childJob.Status = JobStatus.Failed;
-                    childJob.ErrorMessage = ex.Message;
-                    await dbContext.SaveChangesAsync(cancellationToken);
-
-                    foreach (var completedChild in completedChildJobs)
+                    await using var errorTransaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+                    try
                     {
-                        completedChild.Status = JobStatus.Superseded;
-                        _logger.LogInformation("Marked child job {ChildJobId} as superseded due to sibling failure in parent job {ParentJobId}", completedChild.Id, job.Id);
+                        childJob.Status = JobStatus.Failed;
+                        childJob.ErrorMessage = ex.Message;
+                        await dbContext.SaveChangesAsync(cancellationToken);
+
+                        foreach (var completedChild in completedChildJobs)
+                        {
+                            completedChild.Status = JobStatus.Superseded;
+                            _logger.LogInformation("Marked child job {ChildJobId} as superseded due to sibling failure in parent job {ParentJobId}", completedChild.Id, job.Id);
+                        }
+                        await dbContext.SaveChangesAsync(cancellationToken);
+                        await errorTransaction.CommitAsync(cancellationToken);
                     }
-                    await dbContext.SaveChangesAsync(cancellationToken);
+                    catch
+                    {
+                        await errorTransaction.RollbackAsync(cancellationToken);
+                        throw;
+                    }
 
                     job.Status = JobStatus.Failed;
                     job.ErrorMessage = $"Child job {childJob.Id} failed: {ex.Message}";

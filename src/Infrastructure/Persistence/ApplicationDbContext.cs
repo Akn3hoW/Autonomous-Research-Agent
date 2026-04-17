@@ -45,6 +45,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        ArgumentNullException.ThrowIfNull(modelBuilder);
         if (Database.ProviderName == "Npgsql.EntityFrameworkCore.PostgreSQL")
         {
             modelBuilder.HasPostgresExtension("vector");

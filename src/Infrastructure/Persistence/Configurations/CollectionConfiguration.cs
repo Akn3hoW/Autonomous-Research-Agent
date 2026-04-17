@@ -8,6 +8,7 @@ public sealed class CollectionConfiguration : IEntityTypeConfiguration<Collectio
 {
     public void Configure(EntityTypeBuilder<Collection> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("collections");
 
         builder.HasKey(x => x.Id);

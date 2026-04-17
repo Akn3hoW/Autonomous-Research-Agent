@@ -4,6 +4,7 @@ using System.Diagnostics.Metrics;
 using AutonomousResearchAgent.Api.Hubs;
 using AutonomousResearchAgent.Api.Extensions;
 using AutonomousResearchAgent.Api.Middleware;
+using AutonomousResearchAgent.Api.Services;
 using AutonomousResearchAgent.Infrastructure.Extensions;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
@@ -34,7 +35,8 @@ builder.Services.AddOpenTelemetry()
         metrics
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
-            .AddRuntimeInstrumentation();
+            .AddRuntimeInstrumentation()
+            .AddMeter("AutonomousResearchAgent.Business");
     });
 
 builder.Services.AddApiLayer(builder.Configuration);
@@ -52,49 +54,41 @@ builder.Services.AddCors(options =>
         else
         {
             var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? [];
-            if (allowedOrigins.Length == 0 || allowedOrigins.Contains("*"))
+            if (allowedOrigins.Length == 0)
             {
-                policy.SetIsOriginAllowed(_ => true);
+                throw new InvalidOperationException("AllowedOrigins configuration is missing. In production, you must explicitly specify allowed origins.");
             }
-            else
-            {
-                policy.WithOrigins(allowedOrigins)
-                      .AllowAnyHeader()
-                      .AllowAnyMethod();
-            }
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
         }
     });
 });
 
 var app = builder.Build();
 
+var meter = new System.Diagnostics.Metrics.Meter("AutonomousResearchAgent.Business");
+var jobsCompletedCounter = meter.CreateCounter<long>("jobs.completed", description: "Number of jobs completed successfully");
+var jobsFailedCounter = meter.CreateCounter<long>("jobs.failed", description: "Number of jobs failed");
+var cacheHitCounter = meter.CreateCounter<long>("cache.hits", description: "Number of cache hits");
+var cacheMissCounter = meter.CreateCounter<long>("cache.misses", description: "Number of cache misses");
+var jobDurationHistogram = meter.CreateHistogram<double>("jobs.duration_ms", description: "Job duration in milliseconds");
+
+app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<AuditMiddleware>();
 app.UseCors();
 app.UseHsts();
 app.UseHttpsRedirection();
 app.UseDocumentUploadSizeLimit(maxDocumentUploadSizeBytes);
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseAuthentication();
 app.UseRateLimiter();
-if (app.Environment.IsDevelopment() && Environment.GetEnvironmentVariable("ENABLE_DEV_AUTH") == "true")
-{
-    app.Use(async (context, next) =>
-    {
-        if (context.User.Identity?.IsAuthenticated != true)
-        {
-            context.User = new ClaimsPrincipal(new ClaimsIdentity(
-            [
-                new Claim(ClaimTypes.NameIdentifier, "dev-user"),
-                new Claim(ClaimTypes.Name, "Developer"),
-                new Claim(ClaimTypes.Role, "ReadOnly"),
-            ], "Development"));
-        }
-        await next();
-    });
-}
 app.UseAuthorization();
 
 app.MapControllers();

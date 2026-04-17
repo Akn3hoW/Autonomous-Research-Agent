@@ -114,30 +114,3 @@ public sealed record ResearchGapReportModel(
             obj["comparisonSummary"]?.GetValue<string>())
         : null;
 }
-
-public sealed record ChunkCitation(
-    Guid PaperId,
-    Guid ChunkId,
-    string ChunkText,
-    double Score,
-    int Position,
-    string? PaperTitle = null)
-{
-    public string ToCitationString() => $"[source:{ChunkId}:{PaperId}]";
-}
-
-public sealed record DigestModel(
-    Guid Id,
-    Guid UserId,
-    DigestFrequency Frequency,
-    string Topic,
-    string Content,
-    int NewPapersCount,
-    DateTimeOffset CreatedAt);
-
-public sealed record CreateDigestCommand(
-    Guid UserId,
-    DigestFrequency Frequency,
-    string Topic,
-    string Content,
-    int NewPapersCount);

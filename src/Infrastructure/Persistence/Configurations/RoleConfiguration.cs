@@ -8,6 +8,7 @@ public sealed class RoleConfiguration : IEntityTypeConfiguration<Role>
 {
     public void Configure(EntityTypeBuilder<Role> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("roles");
 
         builder.HasKey(x => x.Id);

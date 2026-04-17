@@ -2,6 +2,8 @@ using System.Text;
 using AutonomousResearchAgent.Api.Authorization;
 using AutonomousResearchAgent.Api.Contracts.Summaries;
 using AutonomousResearchAgent.Api.Extensions;
+using AutonomousResearchAgent.Api.Middleware;
+using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Summaries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -100,9 +102,8 @@ public sealed class SummariesController(
     public async Task<ActionResult<AbTestSessionDto>> CreateAbTest(Guid paperId, [FromBody] Contracts.Summaries.CreateAbTestRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        if (userId == null) return Unauthorized();
         var appRequest = request.ToApplicationModel();
-        var created = await summarizationService.CreateAbTestSessionAsync(appRequest with { PaperId = paperId }, Guid.Empty, cancellationToken);
+        var created = await summarizationService.CreateAbTestSessionAsync(appRequest with { PaperId = paperId }, userId, cancellationToken);
         return CreatedAtAction(nameof(GetAbTestSession), new { sessionId = created.Id }, created.ToDto());
     }
 
@@ -247,5 +248,9 @@ public sealed class SummariesController(
         return Ok(version.ToDto());
     }
 
-    private int? GetUserId() => User.GetUserId();
+    private Guid GetUserId()
+    {
+        var userId = User.GetUserGuid();
+        return userId ?? throw new AuthenticationException("User ID not found in token.");
+    }
 }

@@ -32,6 +32,7 @@ public sealed class AnalysisService(
 
     public async Task<AnalysisResultModel> ComparePapersAsync(ComparePapersCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var papers = await dbContext.Papers
             .AsNoTracking()
             .Include(p => p.Documents)
@@ -77,6 +78,7 @@ RIGHT PAPER
 
     public async Task<AnalysisResultModel> CompareFieldsAsync(CompareFieldsCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var leftPapers = await QueryPapersForFilter(command.LeftFilter, cancellationToken);
         var rightPapers = await QueryPapersForFilter(command.RightFilter, cancellationToken);
 
@@ -115,6 +117,7 @@ RIGHT FILTER: {command.RightFilter}
 
     public async Task<AnalysisJobStatusModel> GenerateInsightsAsync(GenerateInsightsCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var payload = new JsonObject
         {
             ["filter"] = command.Filter
@@ -177,6 +180,7 @@ RIGHT FILTER: {command.RightFilter}
 
     public async Task<ResearchGapReportModel> IdentifyResearchGapAsync(IdentifyResearchGapCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var corpusPapers = await dbContext.Papers
             .AsNoTracking()
             .Where(p => EF.Functions.ILike(p.Title, $"%{EscapeILikePattern(command.Topic)}%") || EF.Functions.ILike(p.Abstract ?? string.Empty, $"%{EscapeILikePattern(command.Topic)}%"))

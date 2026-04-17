@@ -18,6 +18,8 @@ public sealed class ResearchGoalsController(IResearchGoalService researchGoalSer
         [FromBody] CreateResearchGoalRequest request,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var command = new CreateResearchGoalCommand(
             request.Goal,
             request.MaxPapers,
@@ -72,6 +74,8 @@ public sealed class ResearchGoalsController(IResearchGoalService researchGoalSer
         [FromBody] CreateFromTemplateRequest request,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var command = new CreateFromTemplateCommand(
             request.TemplateId,
             request.Name,

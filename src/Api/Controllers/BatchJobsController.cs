@@ -26,6 +26,8 @@ public sealed class BatchJobsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<BatchJobDto>> CreateBatchJob([FromBody] BatchOperationRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var userId = User.GetUserGuid();
         if (userId == null)
             return Unauthorized();

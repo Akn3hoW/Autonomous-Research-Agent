@@ -40,6 +40,7 @@ public sealed class AnnotationService(ApplicationDbContext dbContext) : IAnnotat
 
     public async Task<AnnotationModel> CreateAsync(CreateAnnotationCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var paperExists = await dbContext.Papers.AnyAsync(p => p.Id == command.PaperId, cancellationToken);
         if (!paperExists)
         {
@@ -70,6 +71,7 @@ public sealed class AnnotationService(ApplicationDbContext dbContext) : IAnnotat
 
     public async Task<AnnotationModel> UpdateAsync(Guid annotationId, UpdateAnnotationCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var entity = await dbContext.PaperAnnotations
             .Include(a => a.User)
             .FirstOrDefaultAsync(a => a.Id == annotationId, cancellationToken)

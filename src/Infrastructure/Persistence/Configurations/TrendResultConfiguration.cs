@@ -8,6 +8,7 @@ public sealed class TrendResultConfiguration : IEntityTypeConfiguration<TrendRes
 {
     public void Configure(EntityTypeBuilder<TrendResult> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("trend_results");
 
         builder.HasKey(x => x.Id);

@@ -8,6 +8,7 @@ public sealed class ResearchGoalTemplateConfiguration : IEntityTypeConfiguration
 {
     public void Configure(EntityTypeBuilder<ResearchGoalTemplate> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("research_goal_templates");
 
         builder.HasKey(x => x.Id);

@@ -48,6 +48,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        ArgumentNullException.ThrowIfNull(configuration);
         var connectionString = configuration.GetConnectionString("Postgres")
             ?? throw new InvalidOperationException("Connection string 'Postgres' is not configured.");
 
@@ -67,6 +68,7 @@ public static class ServiceCollectionExtensions
         services.Configure<BackgroundJobOptions>(configuration.GetSection(BackgroundJobOptions.SectionName));
         services.Configure<DocumentProcessingOptions>(configuration.GetSection(DocumentProcessingOptions.SectionName));
         services.Configure<LocalEmbeddingOptions>(configuration.GetSection(LocalEmbeddingOptions.SectionName));
+        services.AddSingleton<IValidateOptions<LocalEmbeddingOptions>, LocalEmbeddingOptionsValidator>();
         services.Configure<SearchWeightsOptions>(configuration.GetSection(SearchWeightsOptions.SectionName));
         services.Configure<SummaryOptions>(configuration.GetSection(SummaryOptions.SectionName));
         services.Configure<CacheOptions>(configuration.GetSection("CacheOptions"));

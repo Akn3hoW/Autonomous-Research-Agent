@@ -8,6 +8,7 @@ public sealed class PaperAnnotationConfiguration : IEntityTypeConfiguration<Pape
 {
     public void Configure(EntityTypeBuilder<PaperAnnotation> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("paper_annotations");
 
         builder.HasKey(x => x.Id);

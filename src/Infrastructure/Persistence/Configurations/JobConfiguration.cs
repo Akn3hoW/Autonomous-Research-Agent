@@ -8,6 +8,7 @@ public sealed class JobConfiguration : IEntityTypeConfiguration<Job>
 {
     public void Configure(EntityTypeBuilder<Job> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("jobs");
 
         builder.HasKey(x => x.Id);

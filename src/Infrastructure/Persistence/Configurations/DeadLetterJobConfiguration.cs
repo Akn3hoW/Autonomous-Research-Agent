@@ -8,6 +8,7 @@ public sealed class DeadLetterJobConfiguration : IEntityTypeConfiguration<DeadLe
 {
     public void Configure(EntityTypeBuilder<DeadLetterJob> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("dead_letter_jobs");
 
         builder.HasKey(x => x.Id);

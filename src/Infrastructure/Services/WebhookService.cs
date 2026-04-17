@@ -34,6 +34,7 @@ public sealed class WebhookService(
 
     public async Task<WebhookDetail> CreateAsync(CreateWebhookCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         if (!IsValidWebhookUrl(command.Url))
         {
             throw new ArgumentException("Webhook URL must be a valid HTTPS URL and cannot point to internal or private networks.", nameof(command));
@@ -76,6 +77,7 @@ public sealed class WebhookService(
 
     public async Task<bool> DeliverAsync(WebhookPayload payload, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(payload);
         var eventName = payload.Event;
         var webhooks = await dbContext.UserWebhooks
             .Where(w => w.IsActive && w.Events.Any(e => e == eventName))

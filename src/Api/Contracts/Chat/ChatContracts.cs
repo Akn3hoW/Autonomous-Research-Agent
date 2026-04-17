@@ -1,14 +1,20 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace AutonomousResearchAgent.Api.Contracts.Chat;
 
 public sealed class ChatRequest
 {
     public string Question { get; init; } = string.Empty;
+
+    [Range(1, 100)]
     public int TopK { get; init; } = 10;
 }
 
 public sealed class ChatRequestWithToolsRequest
 {
     public string Question { get; init; } = string.Empty;
+
+    [Range(1, 100)]
     public int TopK { get; init; } = 10;
     public bool IncludeTools { get; init; } = false;
 }

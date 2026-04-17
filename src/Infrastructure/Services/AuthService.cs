@@ -19,6 +19,8 @@ public sealed class AuthService(
 {
     public async Task<AuthResult> LoginAsync(LoginCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var user = await dbContext.Users
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
@@ -54,6 +56,8 @@ public sealed class AuthService(
 
     public async Task<AuthResult> RegisterAsync(RegisterCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         if (await dbContext.Users.AnyAsync(u => u.Email == command.Email, cancellationToken))
         {
             logger.LogWarning("Registration failed: email {Email} already exists", command.Email);
@@ -104,6 +108,8 @@ public sealed class AuthService(
 
     public async Task<AuthResult> RefreshTokenAsync(TokenRefreshCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var principal = tokenService.ValidateToken(command.RefreshToken);
         if (principal == null)
         {

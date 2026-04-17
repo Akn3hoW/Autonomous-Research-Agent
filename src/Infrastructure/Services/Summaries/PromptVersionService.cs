@@ -17,6 +17,7 @@ public sealed class PromptVersionService : IPromptVersionService
 
     public async Task<PromptVersionModel> CreateAsync(CreatePromptVersionCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         var entity = new PromptVersion

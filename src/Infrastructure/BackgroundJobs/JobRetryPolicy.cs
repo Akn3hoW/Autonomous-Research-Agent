@@ -51,6 +51,7 @@ public sealed class JobRetryPolicy
 
     public RetryPolicyData CreateRetryPolicyData(int attempt, Exception exception, TimeSpan delay)
     {
+        ArgumentNullException.ThrowIfNull(exception);
         return new RetryPolicyData
         {
             AttemptNumber = attempt,

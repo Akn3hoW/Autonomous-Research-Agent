@@ -9,6 +9,8 @@ public sealed class RequestSizeLimitMiddleware(RequestDelegate next, long maxDoc
 
     public async Task InvokeAsync(HttpContext context)
     {
+        ArgumentNullException.ThrowIfNull(context);
+
         if (ShouldApplySizeLimit(context.Request.Path))
         {
             var maxRequestBodyFeature = context.Features.Get<IHttpMaxRequestBodySizeFeature>();

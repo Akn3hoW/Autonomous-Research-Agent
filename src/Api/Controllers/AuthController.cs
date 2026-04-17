@@ -74,19 +74,35 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
 
 public static class AuthMappingExtensions
 {
-    public static LoginCommand ToCommand(this LoginRequest request) =>
-        new(request.Email, request.Password);
+    public static LoginCommand ToCommand(this LoginRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
 
-    public static RegisterCommand ToCommand(this RegisterRequest request) =>
-        new(request.Email, request.Username, request.Password);
+        return new LoginCommand(request.Email, request.Password);
+    }
 
-    public static TokenRefreshCommand ToCommand(this TokenRefreshRequest request) =>
-        new(request.RefreshToken);
+    public static RegisterCommand ToCommand(this RegisterRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
 
-    public static AuthResponse ToResponse(this AuthResult result) =>
-        new(
+        return new RegisterCommand(request.Email, request.Username, request.Password);
+    }
+
+    public static TokenRefreshCommand ToCommand(this TokenRefreshRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return new TokenRefreshCommand(request.RefreshToken);
+    }
+
+    public static AuthResponse ToResponse(this AuthResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        return new AuthResponse(
             result.AccessToken,
             result.RefreshToken,
             result.ExpiresAt,
             new UserResponse(result.User.Id, result.User.Email, result.User.Username, result.User.Roles));
+    }
 }

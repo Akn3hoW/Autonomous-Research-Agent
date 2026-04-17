@@ -8,6 +8,7 @@ public partial class AddSearchVectorAndVectorDimensions : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
+        ArgumentNullException.ThrowIfNull(migrationBuilder);
         migrationBuilder.Sql(@"
             ALTER TABLE ""papers"" ADD COLUMN IF NOT EXISTS ""SearchVector"" tsvector
             GENERATED ALWAYS AS (setweight(to_tsvector('english', coalesce(""Title"", '')), 'A') ||
@@ -43,6 +44,7 @@ public partial class AddSearchVectorAndVectorDimensions : Migration
 
     protected override void Down(MigrationBuilder migrationBuilder)
     {
+        ArgumentNullException.ThrowIfNull(migrationBuilder);
         migrationBuilder.Sql("DROP INDEX IF EXISTS \"IX_papers_SearchVector\";");
         migrationBuilder.Sql("DROP INDEX IF EXISTS \"IX_paper_summaries_SearchVector\";");
         migrationBuilder.Sql("DROP INDEX IF EXISTS \"IX_paper_documents_SearchVector\";");

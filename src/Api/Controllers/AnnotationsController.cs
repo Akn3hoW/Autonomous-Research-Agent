@@ -20,9 +20,7 @@ public sealed class AnnotationsController(IAnnotationService annotationService) 
         Guid paperId,
         CancellationToken cancellationToken = default)
     {
-        var userId = User.GetUserId();
-        if (userId is null)
-            return Unauthorized();
+        var userId = GetUserId();
         var annotations = await annotationService.ListForPaperAsync(paperId, null, cancellationToken);
         return Ok(annotations.Select(a => new AnnotationResponse(
             a.Id,
@@ -50,13 +48,13 @@ public sealed class AnnotationsController(IAnnotationService annotationService) 
         [FromBody] CreateAnnotationRequest request,
         CancellationToken cancellationToken)
     {
-        var userId = User.GetUserId();
-        if (userId is null)
-            throw new AuthenticationException("User ID not found in token");
+        ArgumentNullException.ThrowIfNull(request);
+
+        var userId = GetUserId();
 
         var command = new CreateAnnotationCommand(
             paperId,
-            Guid.Empty,
+            userId,
             request.ChunkId,
             request.Page,
             request.OffsetStart,
@@ -113,6 +111,8 @@ public sealed class AnnotationsController(IAnnotationService annotationService) 
         [FromBody] UpdateAnnotationRequest request,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var command = new UpdateAnnotationCommand(request.Note);
         var updated = await annotationService.UpdateAsync(id, command, cancellationToken);
         return Ok(new AnnotationResponse(
@@ -139,5 +139,11 @@ public sealed class AnnotationsController(IAnnotationService annotationService) 
     {
         await annotationService.DeleteAsync(id, cancellationToken);
         return NoContent();
+    }
+
+    private Guid GetUserId()
+    {
+        var userId = User.GetUserGuid();
+        return userId ?? throw new AuthenticationException("User ID not found in token.");
     }
 }

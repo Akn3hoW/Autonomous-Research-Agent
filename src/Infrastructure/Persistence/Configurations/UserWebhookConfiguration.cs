@@ -8,6 +8,7 @@ public sealed class UserWebhookConfiguration : IEntityTypeConfiguration<UserWebh
 {
     public void Configure(EntityTypeBuilder<UserWebhook> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("user_webhooks");
 
         builder.HasKey(w => w.Id);

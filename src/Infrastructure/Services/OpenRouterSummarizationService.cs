@@ -23,6 +23,8 @@ public sealed class OpenRouterSummarizationService(
 
     public async Task<JsonNode?> GenerateSummaryAsync(PaperDetail paper, string modelName, string promptVersion, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(paper);
+
         var extractedTexts = await dbContext.PaperDocuments
             .AsNoTracking()
             .Where(d => d.PaperId == paper.Id && d.Status == PaperDocumentStatus.Extracted && d.ExtractedText != null)
@@ -76,6 +78,8 @@ Source text:
 
     public async Task<AbTestSessionModel> CreateAbTestSessionAsync(CreateAbTestRequest request, Guid userId, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var paper = await dbContext.Papers.AsNoTracking().FirstOrDefaultAsync(p => p.Id == request.PaperId, cancellationToken)
             ?? throw new NotFoundException(nameof(Paper), request.PaperId);
 

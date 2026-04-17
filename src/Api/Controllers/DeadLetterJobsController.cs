@@ -17,6 +17,8 @@ public sealed class DeadLetterJobsController : ControllerBase
         [FromQuery] DeadLetterJobQueryRequest request,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         return Task.FromResult<ActionResult<PagedResponse<DeadLetterJobDto>>>(Ok(new PagedResponse<DeadLetterJobDto>([], request.PageNumber, request.PageSize, 0)));
     }
 

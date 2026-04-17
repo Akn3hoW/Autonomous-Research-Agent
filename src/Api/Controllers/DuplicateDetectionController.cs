@@ -48,6 +48,8 @@ public sealed class DuplicateDetectionController(IDuplicateDetectionService dupl
         [FromBody] ResolveDuplicateRequest request,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var userId = User.GetUserGuid();
         if (userId is null) throw new AuthenticationException("User ID not found in token.");
         await duplicateDetectionService.ResolveDuplicateAsync(
@@ -71,6 +73,8 @@ public sealed class DuplicateDetectionController(IDuplicateDetectionService dupl
         [FromBody] MergeDuplicateRequest request,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var userId = User.GetUserGuid();
         if (userId is null) throw new AuthenticationException("User ID not found in token.");
         await duplicateDetectionService.MergeDuplicatePapersAsync(

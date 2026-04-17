@@ -8,6 +8,7 @@ public sealed class DocumentChunkConfiguration : IEntityTypeConfiguration<Docume
 {
     public void Configure(EntityTypeBuilder<DocumentChunk> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("document_chunks");
 
         builder.HasKey(x => x.Id);

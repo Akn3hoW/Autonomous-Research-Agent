@@ -10,6 +10,7 @@ namespace Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            ArgumentNullException.ThrowIfNull(migrationBuilder);
             migrationBuilder.Sql(
                 @"CREATE INDEX ""IX_paper_embeddings_vector_hnsw"" 
                   ON ""paper_embeddings"" 
@@ -19,6 +20,7 @@ namespace Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            ArgumentNullException.ThrowIfNull(migrationBuilder);
             migrationBuilder.Sql("DROP INDEX IF EXISTS \"IX_paper_embeddings_vector_hnsw\";");
         }
     }

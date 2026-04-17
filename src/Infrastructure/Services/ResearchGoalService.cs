@@ -25,6 +25,8 @@ public sealed class ResearchGoalService(
 
     public async Task<ResearchGoalModel> CreateResearchGoalAsync(CreateResearchGoalCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var rootPayload = new JsonObject
         {
             ["goal"] = command.Goal,
@@ -103,6 +105,8 @@ public sealed class ResearchGoalService(
 
     public async Task<ResearchGoalModel> CreateFromTemplateAsync(CreateFromTemplateCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var template = await dbContext.ResearchGoalTemplates
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == command.TemplateId && t.IsActive, cancellationToken)

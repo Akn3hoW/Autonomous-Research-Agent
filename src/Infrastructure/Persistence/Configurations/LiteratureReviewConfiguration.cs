@@ -8,6 +8,7 @@ public sealed class LiteratureReviewConfiguration : IEntityTypeConfiguration<Lit
 {
     public void Configure(EntityTypeBuilder<LiteratureReview> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("literature_reviews");
 
         builder.HasKey(x => x.Id);

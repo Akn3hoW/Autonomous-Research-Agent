@@ -11,6 +11,7 @@ namespace Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            ArgumentNullException.ThrowIfNull(migrationBuilder);
             migrationBuilder.CreateTable(
                 name: "user_webhooks",
                 columns: table => new
@@ -49,6 +50,7 @@ namespace Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            ArgumentNullException.ThrowIfNull(migrationBuilder);
             migrationBuilder.DropTable(
                 name: "user_webhooks");
         }

@@ -1,3 +1,4 @@
+using System;
 using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Jobs;
 using AutonomousResearchAgent.Domain.Entities;
@@ -14,6 +15,8 @@ public sealed class JobService(
 {
     public async Task<PagedResult<JobModel>> ListAsync(JobQuery query, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(query);
+
         var jobs = dbContext.Jobs.AsNoTracking().AsQueryable();
 
         if (query.Type.HasValue)
@@ -48,6 +51,8 @@ public sealed class JobService(
 
     public async Task<JobModel> CreateAsync(CreateJobCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var entity = new Job
         {
             Type = command.Type,
@@ -71,6 +76,8 @@ public sealed class JobService(
 
     public async Task<JobModel> RetryAsync(Guid id, RetryJobCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var entity = await dbContext.Jobs.FirstOrDefaultAsync(j => j.Id == id, cancellationToken)
             ?? throw new NotFoundException(nameof(Job), id);
 

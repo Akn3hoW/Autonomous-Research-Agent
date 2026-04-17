@@ -1,3 +1,4 @@
+using System;
 using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Watchlist;
 using AutonomousResearchAgent.Domain.Entities;
@@ -13,6 +14,8 @@ public sealed class NotificationService(
 {
     public async Task<PagedResult<NotificationModel>> ListAsync(NotificationQuery query, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(query);
+
         var notificationsQuery = dbContext.Notifications.AsNoTracking().AsQueryable();
 
         if (query.UserId.HasValue)

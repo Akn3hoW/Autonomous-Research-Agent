@@ -1,3 +1,4 @@
+using System;
 using AutonomousResearchAgent.Domain.Entities;
 using AutonomousResearchAgent.Domain.Enums;
 using AutonomousResearchAgent.Infrastructure.Persistence;
@@ -25,7 +26,10 @@ public sealed class EmbeddingIndexingService(
     private readonly LocalEmbeddingOptions _options = options.Value;
 
     public Task UpsertPaperAbstractAsync(Paper paper, CancellationToken cancellationToken)
-        => UpsertPaperEmbeddingAsync(paper.Id, null, null, EmbeddingType.PaperAbstract, paper.Abstract, cancellationToken);
+    {
+        ArgumentNullException.ThrowIfNull(paper);
+        return UpsertPaperEmbeddingAsync(paper.Id, null, null, EmbeddingType.PaperAbstract, paper.Abstract, cancellationToken);
+    }
 
     public async Task UpsertPaperAbstractAsync(IEnumerable<Paper> papers, CancellationToken cancellationToken)
     {
@@ -95,6 +99,8 @@ public sealed class EmbeddingIndexingService(
 
     public async Task UpsertSummaryAsync(PaperSummary summary, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(summary);
+
         var paper = summary.Paper;
         if (paper is null && summary.PaperId != Guid.Empty)
         {
@@ -106,6 +112,8 @@ public sealed class EmbeddingIndexingService(
 
     public async Task UpsertDocumentChunkAsync(DocumentChunk chunk, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(chunk);
+
         await UpsertDocumentChunkEmbeddingAsync(chunk, cancellationToken);
     }
 

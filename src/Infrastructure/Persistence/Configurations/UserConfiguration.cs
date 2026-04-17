@@ -8,6 +8,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
 {
     public void Configure(EntityTypeBuilder<User> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("users");
 
         builder.HasKey(x => x.Id);

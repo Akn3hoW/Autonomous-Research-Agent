@@ -78,7 +78,7 @@ public sealed class DatabaseJobWorker(
 
         var executionContext = new JobExecutionContext(job, linkedCts.Token);
 
-        _ = Task.Run(async () =>
+        var cancellationCheckTask = Task.Run(async () =>
         {
             while (!linkedCts.Token.IsCancellationRequested)
             {
@@ -157,6 +157,7 @@ public sealed class DatabaseJobWorker(
             }
             else
             {
+                await HandleDeadLetterAsync(dbContext, job, ex);
                 job.Status = JobStatus.Failed;
                 job.ErrorMessage = ex.Message;
                 await NotifyJobFailedAsync(notificationService, dbContext, job, $"Job failed: {ex.Message}");
@@ -205,8 +206,28 @@ public sealed class DatabaseJobWorker(
             job.Id, nextRetryCount, maxAttempts, delay.TotalSeconds);
 
         await NotifyJobStatusChangedAsync(notificationService, job, JobStatus.Queued, $"Retry scheduled: {nextRetryCount}/{maxAttempts}");
+    }
 
-        await Task.Delay(delay, CancellationToken.None);
+    private async Task HandleDeadLetterAsync(ApplicationDbContext dbContext, Job job, Exception exception)
+    {
+        var deadLetterJob = new DeadLetterJob
+        {
+            Id = Guid.NewGuid(),
+            OriginalJobId = job.Id,
+            OriginalJobType = job.Type.ToString(),
+            OriginalJobPayload = job.PayloadJson,
+            ErrorMessage = exception.Message,
+            ExceptionType = exception.GetType().FullName,
+            RetryCount = job.RetryCount ?? 0,
+            FailedAt = DateTimeOffset.UtcNow,
+            StackTrace = exception.StackTrace
+        };
+
+        dbContext.DeadLetterJobs.Add(deadLetterJob);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        logger.LogWarning("Job {JobId} moved to dead letter queue after {RetryCount} attempts. Error: {ErrorMessage}",
+            job.Id, deadLetterJob.RetryCount, exception.Message);
     }
 
     private async Task NotifyJobStatusChangedAsync(
@@ -310,7 +331,9 @@ WHERE ""Id"" = (
         }
 
         var fallbackJob = await dbContext.Jobs
-            .FirstOrDefaultAsync(j => j.Status == JobStatus.Queued, cancellationToken);
+            .FromSqlRaw(@"SELECT * FROM jobs WHERE ""Id"" = (
+                SELECT ""Id"" FROM jobs WHERE ""Status"" = {0} ORDER BY ""CreatedAt"" FOR UPDATE SKIP LOCKED LIMIT 1)", QueuedStatusLiteral)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (fallbackJob is null)
         {

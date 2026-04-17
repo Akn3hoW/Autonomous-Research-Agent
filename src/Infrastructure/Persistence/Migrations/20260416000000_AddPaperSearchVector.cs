@@ -11,6 +11,7 @@ namespace Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            ArgumentNullException.ThrowIfNull(migrationBuilder);
             migrationBuilder.AddColumn<string>(
                 name: "SearchVector",
                 table: "papers",
@@ -50,6 +51,7 @@ namespace Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            ArgumentNullException.ThrowIfNull(migrationBuilder);
             migrationBuilder.Sql("DROP TRIGGER IF EXISTS trg_update_paper_search_vector ON \"papers\";");
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS update_paper_search_vector();");
             migrationBuilder.DropIndex(name: "IX_papers_SearchVector", table: "papers");

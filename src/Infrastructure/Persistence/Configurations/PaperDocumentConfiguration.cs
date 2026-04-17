@@ -8,6 +8,7 @@ public sealed class PaperDocumentConfiguration : IEntityTypeConfiguration<PaperD
 {
     public void Configure(EntityTypeBuilder<PaperDocument> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("paper_documents");
 
         builder.HasKey(x => x.Id);

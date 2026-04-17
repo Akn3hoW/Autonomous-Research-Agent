@@ -16,18 +16,19 @@ public sealed class LocalEmbeddingHttpClient : ILocalEmbeddingClient, IEmbedding
     private readonly LocalEmbeddingOptions _options;
     private readonly ILogger<LocalEmbeddingHttpClient> _logger;
 
-    private static readonly Func<AsyncCircuitBreakerPolicy<HttpResponseMessage>> CircuitBreakerFactory = () => Policy<HttpResponseMessage>
+    private static readonly AsyncCircuitBreakerPolicy<HttpResponseMessage> _circuitBreaker = Policy<HttpResponseMessage>
         .Handle<HttpRequestException>()
-        .OrResult(r => !r.IsSuccessStatusCode)
+        .OrResult(r => (int)r.StatusCode >= 500)
         .CircuitBreakerAsync(
-            handledEventsAllowedBeforeBreaking: 3,
+            handledEventsAllowedBeforeBreaking: 5,
             durationOfBreak: TimeSpan.FromSeconds(30),
-            onBreak: (_, _) => Console.WriteLine("Embedding service circuit breaker opened"),
-            onReset: () => Console.WriteLine("Embedding service circuit breaker reset"),
-            onHalfOpen: () => Console.WriteLine("Embedding service circuit breaker half-open"));
+            onBreak: (_, _) => { },
+            onReset: () => { });
 
     public LocalEmbeddingHttpClient(HttpClient httpClient, IOptions<LocalEmbeddingOptions> options, ILogger<LocalEmbeddingHttpClient> logger)
     {
+        ArgumentNullException.ThrowIfNull(options);
+
         _httpClient = httpClient;
         _options = options.Value;
         _logger = logger;
@@ -59,10 +60,9 @@ public sealed class LocalEmbeddingHttpClient : ILocalEmbeddingClient, IEmbedding
             })
         };
 
-        var circuitBreaker = CircuitBreakerFactory();
         try
         {
-            using var response = await circuitBreaker.ExecuteAsync(() => _httpClient.SendAsync(request, cancellationToken));
+            using var response = await _circuitBreaker.ExecuteAsync(() => _httpClient.SendAsync(request, cancellationToken));
             var payload = await response.Content.ReadAsStringAsync(cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
@@ -74,20 +74,20 @@ public sealed class LocalEmbeddingHttpClient : ILocalEmbeddingClient, IEmbedding
             ValidateDimensions(vector);
             return vector;
         }
-        catch (BrokenCircuitException)
+        catch (BrokenCircuitException ex)
         {
-            _logger.LogWarning("Embedding service circuit breaker is open, returning empty result.");
-            return EmptyVector();
+            _logger.LogError(ex, "Embedding service circuit breaker is open");
+            throw new ExternalDependencyException("Embedding service circuit breaker is open", ex);
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogWarning(ex, "Local embedding request failed, returning empty result.");
-            return EmptyVector();
+            _logger.LogError(ex, "Local embedding request failed");
+            throw new ExternalDependencyException("Local embedding request failed", ex);
         }
         catch (JsonException ex)
         {
-            _logger.LogWarning(ex, "Local embedding service returned an invalid payload, returning empty result.");
-            return EmptyVector();
+            _logger.LogError(ex, "Local embedding service returned an invalid payload");
+            throw new ExternalDependencyException("Local embedding service returned an invalid payload", ex);
         }
     }
 

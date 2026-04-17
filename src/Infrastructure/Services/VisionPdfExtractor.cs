@@ -17,6 +17,7 @@ public sealed class VisionPdfExtractor : IDocumentTextExtractor
         ILogger<VisionPdfExtractor> logger,
         HttpClient httpClient)
     {
+        ArgumentNullException.ThrowIfNull(options);
         _options = options.Value;
         _logger = logger;
         _httpClient = httpClient;

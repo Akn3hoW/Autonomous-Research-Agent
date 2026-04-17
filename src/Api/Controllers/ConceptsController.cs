@@ -19,6 +19,8 @@ public sealed class ConceptsController(IConceptService conceptService) : Control
         [FromQuery] ConceptQueryRequest request,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var query = new ConceptQuery(
             request.PageNumber,
             request.PageSize,

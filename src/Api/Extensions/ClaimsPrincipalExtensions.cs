@@ -6,6 +6,8 @@ public static class ClaimsPrincipalExtensions
 {
     public static string? GetActorName(this ClaimsPrincipal principal)
     {
+        ArgumentNullException.ThrowIfNull(principal);
+
         return principal.Identity?.Name
             ?? principal.FindFirstValue("preferred_username")
             ?? principal.FindFirstValue(ClaimTypes.Email)
@@ -15,6 +17,8 @@ public static class ClaimsPrincipalExtensions
 
     public static int? GetUserId(this ClaimsPrincipal principal)
     {
+        ArgumentNullException.ThrowIfNull(principal);
+
         var idClaim = principal.FindFirstValue("user_id")
             ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -28,6 +32,8 @@ public static class ClaimsPrincipalExtensions
 
     public static Guid? GetUserGuid(this ClaimsPrincipal principal)
     {
+        ArgumentNullException.ThrowIfNull(principal);
+
         var idClaim = principal.FindFirstValue("user_id")
             ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
 

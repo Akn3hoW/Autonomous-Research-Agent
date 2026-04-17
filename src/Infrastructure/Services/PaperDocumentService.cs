@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json.Nodes;
 using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Documents;
@@ -40,6 +41,8 @@ public sealed class PaperDocumentService(
 
     public async Task<PaperDocumentModel> CreateAsync(CreatePaperDocumentCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         await EnsurePaperExistsAsync(command.PaperId, cancellationToken);
 
         var normalizedUrl = command.SourceUrl.Trim();
@@ -72,6 +75,8 @@ public sealed class PaperDocumentService(
 
     public async Task<PaperDocumentModel> QueueProcessingAsync(Guid paperId, Guid documentId, QueuePaperDocumentProcessingCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var entity = await dbContext.PaperDocuments
             .FirstOrDefaultAsync(d => d.PaperId == paperId && d.Id == documentId, cancellationToken)
             ?? throw new NotFoundException(nameof(PaperDocument), documentId);

@@ -46,7 +46,17 @@ public sealed class ApiKeyAuthenticationHandler : AuthenticationHandler<Authenti
         }
 
         userApiKey.LastUsedAt = DateTimeOffset.UtcNow;
-        await _dbContext.SaveChangesAsync();
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(5000);
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch
+            {
+            }
+        });
 
         var claims = new List<Claim>
         {

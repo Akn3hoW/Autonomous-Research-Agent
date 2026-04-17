@@ -30,6 +30,12 @@ public sealed class SearchService(
     private readonly SearchWeightsOptions _searchWeights = searchWeightsOptions.Value;
     public async Task<PagedResult<SearchResultModel>> SearchAsync(SearchRequestModel request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+        if (string.IsNullOrWhiteSpace(request.Query))
+        {
+            return new PagedResult<SearchResultModel>([], request.PageNumber, request.PageSize, 0);
+        }
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         return await SearchWithContextAsync(dbContext, request, cancellationToken);
     }
@@ -150,6 +156,13 @@ public sealed class SearchService(
 
     public async Task<PagedResult<SearchResultModel>> SemanticSearchAsync(SemanticSearchRequestModel request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.Query))
+        {
+            return new PagedResult<SearchResultModel>([], request.PageNumber, request.PageSize, 0);
+        }
+
         var queryEmbedding = await embeddingService.GenerateQueryEmbeddingAsync(request.Query, cancellationToken);
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -335,6 +348,13 @@ public sealed class SearchService(
 
     public async Task<PagedResult<SearchResultModel>> HybridSearchAsync(HybridSearchRequestModel request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.Query))
+        {
+            return new PagedResult<SearchResultModel>([], request.PageNumber, request.PageSize, 0);
+        }
+
         var keywordTask = SearchAsync(
             new SearchRequestModel(request.Query, 1, request.MaxCandidates),
             cancellationToken);
@@ -411,6 +431,13 @@ public sealed class SearchService(
 
     public async Task<PagedResult<ChunkSearchResultModel>> SearchDocumentChunksAsync(ChunkSearchRequestModel request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.Query))
+        {
+            return new PagedResult<ChunkSearchResultModel>([], request.PageNumber, request.PageSize, 0);
+        }
+
         var queryEmbedding = await embeddingService.GenerateQueryEmbeddingAsync(request.Query, cancellationToken);
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);

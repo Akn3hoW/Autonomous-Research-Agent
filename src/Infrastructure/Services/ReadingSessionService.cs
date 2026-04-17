@@ -1,3 +1,4 @@
+using System;
 using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.ReadingSessions;
 using AutonomousResearchAgent.Domain.Entities;
@@ -11,6 +12,8 @@ public sealed class ReadingSessionService(ApplicationDbContext dbContext) : IRea
 {
     public async Task<PagedResult<ReadingSessionModel>> ListAsync(ReadingSessionQuery query, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(query);
+
         var queryable = dbContext.PaperReadingSessions
             .AsNoTracking()
             .Include(x => x.Paper)
@@ -48,6 +51,8 @@ public sealed class ReadingSessionService(ApplicationDbContext dbContext) : IRea
 
     public async Task<ReadingSessionModel> CreateAsync(CreateReadingSessionCommand command, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var existing = await dbContext.PaperReadingSessions
             .FirstOrDefaultAsync(x => x.UserId == command.UserId && x.PaperId == command.PaperId, cancellationToken);
 
@@ -83,6 +88,8 @@ public sealed class ReadingSessionService(ApplicationDbContext dbContext) : IRea
 
     public async Task<ReadingSessionModel> UpdateAsync(Guid id, UpdateReadingSessionCommand command, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var entity = await dbContext.PaperReadingSessions
             .Include(x => x.Paper)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)

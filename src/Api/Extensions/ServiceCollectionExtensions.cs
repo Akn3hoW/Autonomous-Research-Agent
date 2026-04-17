@@ -10,12 +10,14 @@ using AutonomousResearchAgent.Api.Contracts.Search;
 using AutonomousResearchAgent.Api.Contracts.Summaries;
 using AutonomousResearchAgent.Api.Middleware;
 using AutonomousResearchAgent.Application.Jobs;
+using AutonomousResearchAgent.Infrastructure.Services;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
+using StackExchange.Redis;
 
 namespace AutonomousResearchAgent.Api.Extensions;
 
@@ -23,6 +25,8 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddApiLayer(this IServiceCollection services, IConfiguration configuration)
     {
+        ArgumentNullException.ThrowIfNull(configuration);
+
         services.AddProblemDetails();
 
         services.AddScoped<ValidationActionFilter>();
@@ -47,6 +51,8 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
+        ArgumentNullException.ThrowIfNull(configuration);
+
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
 
@@ -71,7 +77,7 @@ public static class ServiceCollectionExtensions
                         ValidateIssuerSigningKey = true,
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
                         ValidateLifetime = true,
-                        ClockSkew = TimeSpan.FromMinutes(2)
+                        ClockSkew = TimeSpan.FromSeconds(30)
                     };
                 }
             })
@@ -142,7 +148,9 @@ public static class ServiceCollectionExtensions
                 }
             });
         });
-        services.AddHealthChecks();
+        services.AddHealthChecks()
+            .AddCheck<RedisHealthCheck>("redis", tags: new[] { "ready" })
+            .AddCheck<EmbeddingServiceHealthCheck>("embedding_service", tags: new[] { "ready" });
         return services;
     }
 
@@ -154,6 +162,8 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddRateLimitingPolicies(this IServiceCollection services, IConfiguration configuration)
     {
+        ArgumentNullException.ThrowIfNull(configuration);
+
         services.Configure<RateLimitOptions>(configuration.GetSection(RateLimitOptions.SectionName));
         var rateLimitOptions = configuration.GetSection(RateLimitOptions.SectionName).Get<RateLimitOptions>() ?? new RateLimitOptions();
         services.AddRateLimiter(options =>
@@ -202,6 +212,8 @@ public static class ServiceCollectionExtensions
 
             options.OnRejected = async (context, cancellationToken) =>
             {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<RateLimiterOptions>>();
+                logger.LogWarning("Rate limit exceeded for {Path} from {RemoteIp}", context.HttpContext.Request.Path, context.HttpContext.Connection.RemoteIpAddress);
                 context.HttpContext.Response.Headers["X-RateLimit-Remaining"] = "0";
                 context.HttpContext.Response.Headers["X-RateLimit-Reset"] = DateTimeOffset.UtcNow.AddSeconds(60).ToUnixTimeSeconds().ToString();
                 await Task.CompletedTask;

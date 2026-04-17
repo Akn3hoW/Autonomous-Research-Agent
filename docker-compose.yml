@@ -29,11 +29,11 @@ services:
     container_name: ara-redis
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -88,9 +88,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=autonomous_research_agent;Username=postgres;Password=${POSTGRES_PASSWORD}"
-      ConnectionStrings__Redis: "Host=redis;Port=6379;DefaultDatabase=0"
-      CacheOptions__ConnectionString: "Host=redis;Port=6379;DefaultDatabase=0"
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=autonomous_research_agent;Username=postgres;Password=${POSTGRES_PASSWORD};EnableRetryOnFailure=True"
+      ConnectionStrings__Redis: "Host=redis;Port=6379;DefaultDatabase=0;Password=${REDIS_PASSWORD}"
+      CacheOptions__ConnectionString: "Host=redis;Port=6379;DefaultDatabase=0;Password=${REDIS_PASSWORD}"
       CacheOptions__DefaultTtl: "00:05:00"
       LocalEmbedding__BaseUrl: "http://embedding-service:8001"
       ASPNETCORE_ENVIRONMENT: "${ASPNETCORE_ENVIRONMENT:-Production}"

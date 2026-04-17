@@ -9,6 +9,9 @@ public sealed class ExportService : IExportService
 {
     public string ToBibtex(Guid paperId, string title, IReadOnlyCollection<string> authors, int? year, string? doi, string? venue, int citationCount)
     {
+        ArgumentNullException.ThrowIfNull(title);
+        ArgumentNullException.ThrowIfNull(authors);
+
         var citeKey = GenerateCiteKey(title, authors.FirstOrDefault(), year);
         var sb = new StringBuilder();
         sb.AppendLine($"@article{{{citeKey},");
@@ -37,6 +40,8 @@ public sealed class ExportService : IExportService
 
     public string ToRis(Guid paperId, string title, IReadOnlyCollection<string> authors, int? year, string? doi, string? venue, int citationCount)
     {
+        ArgumentNullException.ThrowIfNull(authors);
+
         var sb = new StringBuilder();
         sb.AppendLine("TY  - JOUR");
         sb.AppendLine($"TI  - {title}");

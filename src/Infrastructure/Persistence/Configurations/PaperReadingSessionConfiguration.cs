@@ -8,6 +8,7 @@ public sealed class PaperReadingSessionConfiguration : IEntityTypeConfiguration<
 {
     public void Configure(EntityTypeBuilder<PaperReadingSession> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("paper_reading_sessions");
 
         builder.HasKey(x => x.Id);

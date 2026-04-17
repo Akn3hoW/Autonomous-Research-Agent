@@ -1,3 +1,4 @@
+using System;
 using AutonomousResearchAgent.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,6 +28,8 @@ public static class QueryHelpers
 
     public static string ToILikePattern(string value)
     {
+        ArgumentNullException.ThrowIfNull(value);
+
         var escaped = value.Trim().Replace("%", "\\%").Replace("_", "\\_");
         return $"%{escaped}%";
     }
@@ -41,6 +44,8 @@ public static class QueryHelpers
 
     public static string FormatPaper(Paper paper)
     {
+        ArgumentNullException.ThrowIfNull(paper);
+
         var extracted = paper.Documents
             .Where(d => !string.IsNullOrWhiteSpace(d.ExtractedText))
             .OrderByDescending(d => d.ExtractedText!.Length)

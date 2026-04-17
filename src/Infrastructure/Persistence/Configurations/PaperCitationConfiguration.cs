@@ -8,6 +8,7 @@ public sealed class PaperCitationConfiguration : IEntityTypeConfiguration<PaperC
 {
     public void Configure(EntityTypeBuilder<PaperCitation> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("paper_citations");
 
         builder.HasKey(x => x.Id);

@@ -8,6 +8,7 @@ public sealed class CollectionPaperConfiguration : IEntityTypeConfiguration<Coll
 {
     public void Configure(EntityTypeBuilder<CollectionPaper> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("collection_papers");
 
         builder.HasKey(x => new { x.CollectionId, x.PaperId });

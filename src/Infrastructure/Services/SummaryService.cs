@@ -45,6 +45,7 @@ public sealed class SummaryService(
 
     public async Task<SummaryModel> CreateAsync(CreateSummaryCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var paperExists = await dbContext.Papers.AnyAsync(p => p.Id == command.PaperId, cancellationToken);
         if (!paperExists)
         {
@@ -73,6 +74,7 @@ public sealed class SummaryService(
 
     public async Task<SummaryModel> UpdateAsync(Guid summaryId, UpdateSummaryCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var entity = await dbContext.PaperSummaries.FirstOrDefaultAsync(s => s.Id == summaryId, cancellationToken)
             ?? throw new NotFoundException(nameof(PaperSummary), summaryId);
 
@@ -100,6 +102,7 @@ public sealed class SummaryService(
 
     public async Task<SummaryModel> ReviewAsync(Guid summaryId, ReviewSummaryCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var entity = await dbContext.PaperSummaries.FirstOrDefaultAsync(s => s.Id == summaryId, cancellationToken)
             ?? throw new NotFoundException(nameof(PaperSummary), summaryId);
 

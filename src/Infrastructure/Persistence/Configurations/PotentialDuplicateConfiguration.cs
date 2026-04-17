@@ -8,6 +8,7 @@ public sealed class PotentialDuplicateConfiguration : IEntityTypeConfiguration<P
 {
     public void Configure(EntityTypeBuilder<PotentialDuplicate> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("potential_duplicates");
 
         builder.HasKey(x => x.Id);

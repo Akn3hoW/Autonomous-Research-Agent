@@ -9,6 +9,7 @@ public sealed class AuditService(DbContext dbContext) : IAuditService
 {
     public async Task<PagedAuditResult> GetAuditLogAsync(AuditLogQuery query, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(query);
         var q = dbContext.Set<AuditEvent>().AsNoTracking();
 
         if (query.UserId.HasValue)
@@ -50,6 +51,7 @@ public sealed class AuditService(DbContext dbContext) : IAuditService
 
     public async Task LogAuditEventAsync(AuditLogCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var auditEvent = new AuditEvent
         {
             UserId = command.UserId,

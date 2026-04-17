@@ -8,7 +8,7 @@ public sealed class PostgresPasswordValidator : IStartupFilter
         {
             var connectionString = app.ApplicationServices.GetRequiredService<IConfiguration>().GetConnectionString("Postgres") ?? string.Empty;
 
-            if (string.IsNullOrEmpty(connectionString))
+            if (string.IsNullOrWhiteSpace(connectionString))
             {
                 throw new InvalidOperationException(
                     "PostgreSQL connection string is not configured. Set 'ConnectionStrings:Postgres' in appsettings.json or environment variables.");

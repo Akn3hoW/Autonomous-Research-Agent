@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json.Nodes;
 using AutonomousResearchAgent.Domain.Entities;
 
@@ -7,6 +8,8 @@ public static class PaperDocumentJobPayload
 {
     public static JsonObject Create(PaperDocument document)
     {
+        ArgumentNullException.ThrowIfNull(document);
+
         return new JsonObject
         {
             ["paperId"] = document.PaperId,

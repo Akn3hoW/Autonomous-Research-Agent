@@ -8,6 +8,7 @@ public sealed class HypothesisPaperConfiguration : IEntityTypeConfiguration<Hypo
 {
     public void Configure(EntityTypeBuilder<HypothesisPaper> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("hypothesis_papers");
 
         builder.HasKey(x => x.Id);

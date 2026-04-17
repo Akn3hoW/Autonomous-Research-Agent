@@ -99,6 +99,8 @@ public sealed class UsersController(IUserService userService) : ControllerBase
     [ProducesResponseType(typeof(UserApiKeyDto), StatusCodes.Status201Created)]
     public async Task<ActionResult<UserApiKeyDto>> CreateApiKey([FromBody] CreateApiKeyRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (!Guid.TryParse(userId, out var id))
             return Unauthorized();
@@ -125,24 +127,52 @@ public sealed class UsersController(IUserService userService) : ControllerBase
 
 public static class UserMappingExtensions
 {
-    public static UserQuery ToApplicationModel(this UserQueryRequest request) =>
-        new(request.PageNumber, request.PageSize, request.Email, request.Username, request.IsActive);
+    public static UserQuery ToApplicationModel(this UserQueryRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
 
-    public static CreateUserCommand ToCommand(this CreateUserRequest request) =>
-        new(request.Email, request.Username, request.Password, request.Roles);
+        return new UserQuery(request.PageNumber, request.PageSize, request.Email, request.Username, request.IsActive);
+    }
 
-    public static UpdateUserCommand ToCommand(this UpdateUserRequest request) =>
-        new(request.Email, request.Username, request.IsActive);
+    public static CreateUserCommand ToCommand(this CreateUserRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
 
-    public static AssignRolesCommand ToCommand(this AssignRolesRequest request) =>
-        new(request.Roles);
+        return new CreateUserCommand(request.Email, request.Username, request.Password, request.Roles);
+    }
 
-    public static UserDto ToDto(this UserModel model) =>
-        new(model.Id, model.Email, model.Username, model.IsActive, model.Roles, model.CreatedAt, model.UpdatedAt);
+    public static UpdateUserCommand ToCommand(this UpdateUserRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
 
-    public static UserApiKeyDto ToDto(this UserApiKeyModel model) =>
-        new(model.Id, model.Name, model.Permissions, model.CreatedAt, model.ExpiresAt, model.LastUsedAt);
+        return new UpdateUserCommand(request.Email, request.Username, request.IsActive);
+    }
 
-    public static UserApiKeyDto ToDto(this UserApiKeyModel model, string rawKey) =>
-        new(model.Id, model.Name, model.Permissions, model.CreatedAt, model.ExpiresAt, model.LastUsedAt, rawKey);
+    public static AssignRolesCommand ToCommand(this AssignRolesRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return new AssignRolesCommand(request.Roles);
+    }
+
+    public static UserDto ToDto(this UserModel model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+
+        return new UserDto(model.Id, model.Email, model.Username, model.IsActive, model.Roles, model.CreatedAt, model.UpdatedAt);
+    }
+
+    public static UserApiKeyDto ToDto(this UserApiKeyModel model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+
+        return new UserApiKeyDto(model.Id, model.Name, model.Permissions, model.CreatedAt, model.ExpiresAt, model.LastUsedAt);
+    }
+
+    public static UserApiKeyDto ToDto(this UserApiKeyModel model, string rawKey)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+
+        return new UserApiKeyDto(model.Id, model.Name, model.Permissions, model.CreatedAt, model.ExpiresAt, model.LastUsedAt, rawKey);
+    }
 }

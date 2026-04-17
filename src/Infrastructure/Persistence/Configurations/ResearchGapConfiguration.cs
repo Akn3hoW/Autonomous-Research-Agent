@@ -8,6 +8,7 @@ public sealed class ResearchGapConfiguration : IEntityTypeConfiguration<Research
 {
     public void Configure(EntityTypeBuilder<ResearchGap> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("research_gaps");
 
         builder.HasKey(x => x.Id);

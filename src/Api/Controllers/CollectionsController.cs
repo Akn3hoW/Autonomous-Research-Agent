@@ -77,6 +77,8 @@ public sealed class CollectionsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<CollectionResponse>> CreateCollection([FromBody] CreateCollectionRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var userId = GetUserId();
         var command = new CreateCollectionCommand(userId, request.Name, request.Description, request.IsShared);
         var created = await collectionService.CreateAsync(command, cancellationToken);
@@ -91,6 +93,8 @@ public sealed class CollectionsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<CollectionResponse>> UpdateCollection(Guid id, [FromBody] UpdateCollectionRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var userId = GetUserId();
         var command = new UpdateCollectionCommand(request.Name, request.Description, request.IsShared);
         var updated = await collectionService.UpdateAsync(id, command, userId, cancellationToken);
@@ -144,6 +148,8 @@ public sealed class CollectionsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ReorderPapers(Guid id, [FromBody] ReorderPapersRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var userId = GetUserId();
         var command = new ReorderPapersCommand(request.PaperIds);
         await collectionService.ReorderPapersAsync(id, command, userId, cancellationToken);

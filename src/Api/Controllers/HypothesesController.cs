@@ -43,6 +43,8 @@ public sealed class HypothesesController(IHypothesisService hypothesisService) :
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<HypothesisResponse>> CreateHypothesis([FromBody] CreateHypothesisRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var userId = GetUserId();
         var command = new CreateHypothesisCommand(
             request.Title,
@@ -61,6 +63,8 @@ public sealed class HypothesesController(IHypothesisService hypothesisService) :
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<HypothesisResponse>> UpdateHypothesis(Guid id, [FromBody] UpdateHypothesisRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var userId = GetUserId();
         var existing = await hypothesisService.GetByIdAsync(id, cancellationToken);
         if (existing == null)
@@ -79,6 +83,8 @@ public sealed class HypothesesController(IHypothesisService hypothesisService) :
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<HypothesisResponse>> UpdateHypothesisStatus(Guid id, [FromBody] UpdateHypothesisStatusRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var status = ParseHypothesisStatus(request.Status);
         var command = new UpdateHypothesisStatusCommand(status, request.EvidenceText);
         var updated = await hypothesisService.UpdateStatusAsync(id, command, cancellationToken);
@@ -110,6 +116,8 @@ public sealed class HypothesesController(IHypothesisService hypothesisService) :
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<HypothesisPaperResponse>> AddPaper(Guid id, [FromBody] AddHypothesisPaperRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var command = new AddHypothesisPaperCommand(request.PaperId, ParseEvidenceType(request.EvidenceType), request.EvidenceText);
         var result = await hypothesisService.AddPaperAsync(id, command, cancellationToken);
         return CreatedAtAction(nameof(GetHypothesis), new { id }, result);

@@ -20,6 +20,8 @@ public sealed class JobsController(IJobService jobService) : ControllerBase
     [ProducesResponseType(typeof(PagedResponse<JobDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponse<JobDto>>> GetJobs([FromQuery] JobQueryRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var result = await jobService.ListAsync(request.ToApplicationModel(), cancellationToken);
         return Ok(result.ToPagedResponse(item => item.ToDto()));
     }
@@ -39,6 +41,8 @@ public sealed class JobsController(IJobService jobService) : ControllerBase
     [ProducesResponseType(typeof(JobDto), StatusCodes.Status201Created)]
     public async Task<ActionResult<JobDto>> CreateImportJob([FromBody] CreateImportJobRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var queriesArray = new JsonArray();
         foreach (var query in request.Queries)
         {
@@ -65,6 +69,8 @@ public sealed class JobsController(IJobService jobService) : ControllerBase
     [ProducesResponseType(typeof(JobDto), StatusCodes.Status201Created)]
     public async Task<ActionResult<JobDto>> CreateSummarizeJob([FromBody] CreateSummarizeJobRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var payload = new JsonObject
         {
             ["paperId"] = request.PaperId,
@@ -84,6 +90,8 @@ public sealed class JobsController(IJobService jobService) : ControllerBase
     [ProducesResponseType(typeof(JobDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<JobDto>> RetryJob(Guid id, [FromBody] RetryJobRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var result = await jobService.RetryAsync(id, new RetryJobCommand(User.GetActorName(), request.Reason), cancellationToken);
         return Ok(result.ToDto());
     }

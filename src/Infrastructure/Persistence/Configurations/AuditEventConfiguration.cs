@@ -8,6 +8,7 @@ public sealed class AuditEventConfiguration : IEntityTypeConfiguration<AuditEven
 {
     public void Configure(EntityTypeBuilder<AuditEvent> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("audit_events");
 
         builder.HasKey(x => x.Id);
@@ -28,5 +29,7 @@ public sealed class AuditEventConfiguration : IEntityTypeConfiguration<AuditEven
         builder.HasIndex(x => x.EntityType);
         builder.HasIndex(x => x.Action);
         builder.HasIndex(x => x.Timestamp);
+        builder.HasIndex(x => new { x.EntityType, x.EntityId });
+        builder.HasIndex(x => new { x.UserId, x.Timestamp });
     }
 }

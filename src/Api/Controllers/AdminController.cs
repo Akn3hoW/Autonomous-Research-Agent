@@ -20,6 +20,8 @@ public sealed class AdminController(
     [ProducesResponseType(typeof(AuditLogResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<AuditLogResponse>> GetAuditLog([FromQuery] AuditLogRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var query = new AuditLogQuery(
             request.PageNumber,
             request.PageSize,

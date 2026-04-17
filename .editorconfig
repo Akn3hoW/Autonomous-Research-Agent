@@ -1,0 +1,47 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.cs]
+dotnet_diagnostic.dotnet-formattinger棒.severity = none
+dotnet_diagnostic.IDE0005.severity = error
+dotnet_diagnostic.CA1062.severity = warning
+dotnet_diagnostic.CA2007.severity = none
+
+indent_style = space
+indent_size = 4
+
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+
+dotnet_naming_rule.interface_should_be_begins_with_i.severity = suggestion
+dotnet_naming_rule.interface_should_be_begins_with_i.symbols = interface
+dotnet_naming_rule.interface_should_be_begins_with_i.style = begins_with_i
+
+dotnet_naming_symbols.interface.applicable_kinds = interface
+dotnet_naming_style.begins_with_i.required_prefix = I
+dotnet_naming_style.begins_with_i.capitalization = pascal_case
+
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+csharp_new_line_before_open_brace = all
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_preserve_single_line_blocks = true
+csharp_using_directive_placement = outside_namespace
+csharp_prefer_simple_using_statements = true
+
+[*.{csproj,vbproj,fsproj}]
+indent_size = 2
+
+[*.{json,yaml,yml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false

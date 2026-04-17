@@ -9,6 +9,9 @@ public sealed class ValidationActionFilter(IServiceProvider serviceProvider) : I
 {
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(next);
+
         var failures = new List<ValidationFailure>();
 
         foreach (var argument in context.ActionArguments.Values.Where(v => v is not null))

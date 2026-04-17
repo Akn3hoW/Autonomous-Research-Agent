@@ -77,6 +77,7 @@ public sealed class CollectionService : ICollectionService
 
     public async Task<CollectionListItem> CreateAsync(CreateCollectionCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var maxSortOrder = await _db.Collections
             .Where(c => c.UserId == command.UserId)
             .MaxAsync(c => (int?)c.SortOrder, cancellationToken) ?? 0;
@@ -106,6 +107,7 @@ public sealed class CollectionService : ICollectionService
 
     public async Task<CollectionListItem> UpdateAsync(Guid id, UpdateCollectionCommand command, Guid userId, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var collection = await _db.Collections
             .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId, cancellationToken)
             ?? throw new NotFoundException("Collection", id);
@@ -144,6 +146,7 @@ public sealed class CollectionService : ICollectionService
 
     public async Task AddPaperAsync(Guid collectionId, AddPaperCommand command, Guid userId, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -184,6 +187,7 @@ public sealed class CollectionService : ICollectionService
 
     public async Task RemovePaperAsync(Guid collectionId, RemovePaperCommand command, Guid userId, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var collection = await _db.Collections
             .FirstOrDefaultAsync(c => c.Id == collectionId && c.UserId == userId, cancellationToken)
             ?? throw new NotFoundException("Collection", collectionId);
@@ -198,6 +202,7 @@ public sealed class CollectionService : ICollectionService
 
     public async Task ReorderPapersAsync(Guid collectionId, ReorderPapersCommand command, Guid userId, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var collection = await _db.Collections
             .Include(c => c.CollectionPapers)
             .FirstOrDefaultAsync(c => c.Id == collectionId && c.UserId == userId, cancellationToken)

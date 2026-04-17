@@ -18,6 +18,8 @@ public sealed class ChatController(IChatService chatService, ILogger<ChatControl
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task Chat([FromBody] ChatRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         Response.ContentType = "text/event-stream";
         Response.StatusCode = 200;
 
@@ -50,6 +52,8 @@ public sealed class ChatController(IChatService chatService, ILogger<ChatControl
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task ChatWithTools([FromBody] ChatRequestWithToolsRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         Response.ContentType = "text/event-stream";
         Response.StatusCode = 200;
 
@@ -83,6 +87,8 @@ public sealed class ChatController(IChatService chatService, ILogger<ChatControl
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ChatResponseDto>> ChatWithSources([FromBody] ChatRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var result = await chatService.ChatAsync(request.Question, request.TopK, cancellationToken);
 
         var sources = result.Sources.Select(s => new ChatSourceDto(

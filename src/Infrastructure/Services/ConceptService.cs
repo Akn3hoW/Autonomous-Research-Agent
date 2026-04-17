@@ -1,3 +1,4 @@
+using System;
 using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Concepts;
 using AutonomousResearchAgent.Domain.Entities;
@@ -18,6 +19,8 @@ public sealed class ConceptService : IConceptService
 
     public async Task<PagedResult<ConceptModel>> ListAsync(ConceptQuery query, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(query);
+
         var q = _dbContext.PaperConcepts.AsNoTracking();
 
         if (query.ConceptType.HasValue)

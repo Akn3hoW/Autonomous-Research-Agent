@@ -35,6 +35,16 @@ public sealed class RedisCacheService(
             logger.LogDebug("Cache hit for key {Key}", key);
             return JsonSerializer.Deserialize<T>(value!, _jsonOptions);
         }
+        catch (RedisConnectionException ex)
+        {
+            logger.LogWarning(ex, "Redis connection error getting cache key {Key}", key);
+            return null;
+        }
+        catch (RedisTimeoutException ex)
+        {
+            logger.LogWarning(ex, "Redis timeout getting cache key {Key}", key);
+            return null;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error getting cache key {Key}", key);
@@ -54,6 +64,16 @@ public sealed class RedisCacheService(
             logger.LogDebug("Set cache key {Key} with TTL {Ttl}, result: {Result}", key, expiry, result);
             return result;
         }
+        catch (RedisConnectionException ex)
+        {
+            logger.LogWarning(ex, "Redis connection error setting cache key {Key}", key);
+            return false;
+        }
+        catch (RedisTimeoutException ex)
+        {
+            logger.LogWarning(ex, "Redis timeout setting cache key {Key}", key);
+            return false;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error setting cache key {Key}", key);
@@ -72,6 +92,16 @@ public sealed class RedisCacheService(
             logger.LogDebug("Set cache key {Key} with TTL {Ttl}, result: {Result}", key, expiry, result);
             return result;
         }
+        catch (RedisConnectionException ex)
+        {
+            logger.LogWarning(ex, "Redis connection error setting cache key {Key}", key);
+            return false;
+        }
+        catch (RedisTimeoutException ex)
+        {
+            logger.LogWarning(ex, "Redis timeout setting cache key {Key}", key);
+            return false;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error setting cache key {Key}", key);
@@ -88,6 +118,16 @@ public sealed class RedisCacheService(
             logger.LogDebug("Removed cache key {Key}, result: {Result}", key, result);
             return result;
         }
+        catch (RedisConnectionException ex)
+        {
+            logger.LogWarning(ex, "Redis connection error removing cache key {Key}", key);
+            return false;
+        }
+        catch (RedisTimeoutException ex)
+        {
+            logger.LogWarning(ex, "Redis timeout removing cache key {Key}", key);
+            return false;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error removing cache key {Key}", key);
@@ -101,6 +141,16 @@ public sealed class RedisCacheService(
         {
             var prefixedKey = GetPrefixedKey(key);
             return await _database.KeyExistsAsync(prefixedKey);
+        }
+        catch (RedisConnectionException ex)
+        {
+            logger.LogWarning(ex, "Redis connection error checking existence of cache key {Key}", key);
+            return false;
+        }
+        catch (RedisTimeoutException ex)
+        {
+            logger.LogWarning(ex, "Redis timeout checking existence of cache key {Key}", key);
+            return false;
         }
         catch (Exception ex)
         {
@@ -116,6 +166,16 @@ public sealed class RedisCacheService(
             var prefixedKey = GetPrefixedKey(key);
             return await _database.KeyExpireAsync(prefixedKey, ttl);
         }
+        catch (RedisConnectionException ex)
+        {
+            logger.LogWarning(ex, "Redis connection error setting expiration for cache key {Key}", key);
+            return false;
+        }
+        catch (RedisTimeoutException ex)
+        {
+            logger.LogWarning(ex, "Redis timeout setting expiration for cache key {Key}", key);
+            return false;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error setting expiration for cache key {Key}", key);
@@ -125,6 +185,8 @@ public sealed class RedisCacheService(
 
     public async Task<T?> GetOrSetAsync<T>(string key, Func<Task<T>> factory, TimeSpan? ttl = null, CancellationToken cancellationToken = default) where T : class
     {
+        ArgumentNullException.ThrowIfNull(factory);
+
         var cached = await GetAsync<T>(key, cancellationToken);
         if (cached != null)
         {

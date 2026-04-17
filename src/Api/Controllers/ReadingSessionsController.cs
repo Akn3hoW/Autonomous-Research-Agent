@@ -60,6 +60,8 @@ public sealed class ReadingSessionsController(IReadingSessionService readingSess
         [FromBody] CreateReadingSessionRequest request,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var userId = GetUserId();
         var command = new CreateReadingSessionCommand(userId, request.PaperId);
         var created = await readingSessionService.CreateAsync(command, cancellationToken);
@@ -77,6 +79,8 @@ public sealed class ReadingSessionsController(IReadingSessionService readingSess
         [FromBody] UpdateReadingSessionRequest request,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var userId = GetUserId();
         var existing = await readingSessionService.GetByIdAsync(id, cancellationToken);
         if (existing == null)

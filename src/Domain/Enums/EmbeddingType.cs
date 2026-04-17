@@ -8,5 +8,6 @@ public enum EmbeddingType
     PaperSummary = Summary,
     Analysis = 3,
     Query = 4,
-    DocumentChunk = 5
+    DocumentChunk = 5,
+    Paper = 6
 }

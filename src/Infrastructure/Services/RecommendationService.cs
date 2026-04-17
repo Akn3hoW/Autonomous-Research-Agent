@@ -11,6 +11,8 @@ public sealed class RecommendationService(ApplicationDbContext dbContext) : IRec
 {
     public async Task<PagedResult<PaperRecommendationModel>> GetRecommendationsAsync(RecommendationQuery query, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(query);
+
         var readPaperIds = await dbContext.PaperReadingSessions
             .AsNoTracking()
             .Where(x => x.UserId == query.UserId && x.Status == ReadingStatus.Read)

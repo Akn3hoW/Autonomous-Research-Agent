@@ -38,6 +38,8 @@ public sealed class WebhooksController(IWebhookService webhookService) : Control
         [FromBody] CreateWebhookRequest request,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var userId = GetUserId();
 
         if (request.Events.Count == 0)

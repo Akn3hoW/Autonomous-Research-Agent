@@ -8,6 +8,7 @@ public sealed class BatchJobConfiguration : IEntityTypeConfiguration<BatchJob>
 {
     public void Configure(EntityTypeBuilder<BatchJob> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("batch_jobs");
 
         builder.HasKey(x => x.Id);

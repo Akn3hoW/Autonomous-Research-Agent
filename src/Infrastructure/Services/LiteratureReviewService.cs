@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AutonomousResearchAgent.Application.Common;
@@ -16,8 +17,17 @@ public sealed class LiteratureReviewService(
     IOpenRouterChatClient openRouterChatClient,
     ILogger<LiteratureReviewService> logger) : ILiteratureReviewService
 {
+    private const int MaxPaperIds = 100;
+
     public async Task<LiteratureReviewDetail> CreateAsync(CreateLiteratureReviewCommand command, Guid userId, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
+        if (command.PaperIds.Count > MaxPaperIds)
+        {
+            throw new ArgumentException($"Maximum of {MaxPaperIds} paper IDs allowed.", nameof(command.PaperIds));
+        }
+
         var entity = new LiteratureReview
         {
             UserId = userId,
@@ -207,6 +217,9 @@ Papers to review:
         return entity.ContentMarkdown;
     }
 
+    /// <summary>
+    /// Exports the literature review as markdown bytes. Note: Returns markdown content, not actual PDF.
+    /// </summary>
     public async Task<byte[]> ExportToPdfAsync(Guid reviewId, CancellationToken cancellationToken)
     {
         var markdown = await ExportToMarkdownAsync(reviewId, cancellationToken);

@@ -19,6 +19,8 @@ public sealed class AnalysisController(IAnalysisService analysisService, ILogger
     [ProducesResponseType(typeof(AnalysisResultDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<AnalysisResultDto>> ComparePapers([FromBody] ComparePapersRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var result = await analysisService.ComparePapersAsync(request.ToApplicationModel(User.GetActorName()), cancellationToken);
         return Ok(result.ToDto());
     }
@@ -29,6 +31,8 @@ public sealed class AnalysisController(IAnalysisService analysisService, ILogger
     [ProducesResponseType(typeof(AnalysisResultDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<AnalysisResultDto>> CompareFields([FromBody] CompareFieldsRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var result = await analysisService.CompareFieldsAsync(request.ToApplicationModel(User.GetActorName()), cancellationToken);
         return Ok(result.ToDto());
     }
@@ -39,6 +43,8 @@ public sealed class AnalysisController(IAnalysisService analysisService, ILogger
     [ProducesResponseType(typeof(AnalysisJobStatusDto), StatusCodes.Status202Accepted)]
     public async Task<ActionResult<AnalysisJobStatusDto>> GenerateInsights([FromBody] GenerateInsightsRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var result = await analysisService.GenerateInsightsAsync(request.ToApplicationModel(User.GetActorName()), cancellationToken);
         return AcceptedAtAction(nameof(GetAnalysisByJobId), new { jobId = result.JobId }, result.ToDto());
     }
@@ -77,6 +83,8 @@ public sealed class AnalysisController(IAnalysisService analysisService, ILogger
     [ProducesResponseType(typeof(ResearchGapReportDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<ResearchGapReportDto>> IdentifyResearchGap([FromBody] IdentifyResearchGapRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var result = await analysisService.IdentifyResearchGapAsync(new IdentifyResearchGapCommand(request.Topic, User.GetActorName()), cancellationToken);
         return Ok(result.ToDto());
     }

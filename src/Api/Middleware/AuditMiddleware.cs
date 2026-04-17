@@ -28,6 +28,8 @@ public sealed class AuditMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
+        ArgumentNullException.ThrowIfNull(context);
+
         context.Request.EnableBuffering();
         await _next(context);
 
@@ -81,12 +83,58 @@ public sealed class AuditMiddleware
         return null;
     }
 
+    private static readonly string[] SensitiveFields = ["password", "apiKey", "refreshToken", "secret", "token", "authorization"];
+
     private static async Task<string?> GetRequestBodyAsync(HttpContext context)
     {
         context.Request.Body.Position = 0;
         using var reader = new StreamReader(context.Request.Body);
         var body = await reader.ReadToEndAsync();
         context.Request.Body.Position = 0;
-        return string.IsNullOrWhiteSpace(body) ? null : body;
+        return string.IsNullOrWhiteSpace(body) ? null : MaskSensitiveData(body);
+    }
+
+    private static string MaskSensitiveData(string body)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var masked = MaskValue(doc.RootElement);
+            return JsonSerializer.Serialize(masked);
+        }
+        catch
+        {
+            foreach (var field in SensitiveFields)
+            {
+                var pattern = $"\"{field}\"\\s*:\\s*\"[^\"]*\"";
+                body = System.Text.RegularExpressions.Regex.Replace(body, pattern, $"\"{field}\":\"***\"", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            }
+            return body;
+        }
+    }
+
+    private static JsonElement MaskValue(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            var dict = new Dictionary<string, object?>();
+            foreach (var prop in element.EnumerateObject())
+            {
+                dict[prop.Name] = SensitiveFields.Any(f => prop.Name.Equals(f, StringComparison.OrdinalIgnoreCase))
+                    ? (object?)"***"
+                    : MaskValue(prop.Value);
+            }
+            return JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(dict));
+        }
+        if (element.ValueKind == JsonValueKind.Array)
+        {
+            var list = new List<object?>();
+            foreach (var item in element.EnumerateArray())
+            {
+                list.Add(MaskValue(item));
+            }
+            return JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(list));
+        }
+        return element;
     }
 }

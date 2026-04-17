@@ -11,6 +11,7 @@ public sealed class PaperEmbeddingConfiguration : IEntityTypeConfiguration<Paper
 
     public void Configure(EntityTypeBuilder<PaperEmbedding> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("paper_embeddings");
 
         builder.HasKey(x => x.Id);

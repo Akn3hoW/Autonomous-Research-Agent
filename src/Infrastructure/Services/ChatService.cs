@@ -1,3 +1,4 @@
+using System;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -303,6 +304,8 @@ Provide your answer below. Start with a brief summary if the question requires i
 
     public async Task<ChatResult> ChatWithToolsAsync(ChatRequestWithTools request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var chunks = await SearchRelevantChunksAsync(request.Question, request.TopK, cancellationToken);
 
         if (chunks.Count == 0)
@@ -310,7 +313,17 @@ Provide your answer below. Start with a brief summary if the question requires i
             return new ChatResult("I couldn't find any relevant information in the knowledge base to answer your question.", []);
         }
 
-        return new ChatResult("Tool calling not yet implemented. Use ChatAsync for basic RAG.", chunks);
+        var prompt = BuildPrompt(request.Question, chunks);
+        var systemPrompt = @"You are an expert research assistant with access to tools for searching and analyzing academic papers.
+Answer questions based ONLY on the provided context chunks.
+If the context doesn't contain enough information to fully answer the question, say so clearly.
+When citing sources, use the format [source:ChunkId:PaperId] with the exact IDs provided.
+Format your response with proper paragraphs and structure.
+NOTE: Advanced tool calling is not yet implemented. For now, rely on the provided context.";
+
+        var answer = await GetChatCompletionAsync(systemPrompt, prompt, cancellationToken);
+
+        return new ChatResult(answer, chunks);
     }
 
     public async IAsyncEnumerable<string> StreamChatWithToolsAsync(

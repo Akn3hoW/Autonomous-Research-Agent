@@ -1,3 +1,4 @@
+using System;
 using AutonomousResearchAgent.Application.BatchJobs;
 using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Domain.Entities;
@@ -15,6 +16,8 @@ public sealed class BatchJobService(
 {
     public async Task<BatchJobModel> CreateAsync(CreateBatchJobCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var entity = new BatchJob
         {
             Action = command.Action,

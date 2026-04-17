@@ -4,6 +4,9 @@ public static class VectorMath
 {
     public static double CosineSimilarity(float[] left, float[] right)
     {
+        ArgumentNullException.ThrowIfNull(left);
+        ArgumentNullException.ThrowIfNull(right);
+
         if (left.Length == 0 || right.Length == 0 || left.Length != right.Length)
         {
             return 0d;

@@ -19,6 +19,8 @@ public sealed class SavedSearchService(
 {
     public async Task<PagedResult<SavedSearchModel>> ListAsync(SavedSearchQuery query, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(query);
+
         var savedSearchesQuery = dbContext.SavedSearches.AsNoTracking().AsQueryable();
 
         if (query.UserId.HasValue)
@@ -74,6 +76,8 @@ public sealed class SavedSearchService(
 
     public async Task<SavedSearchModel> CreateAsync(CreateSavedSearchCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var entity = new SavedSearch
         {
             UserId = command.UserId,
@@ -92,6 +96,8 @@ public sealed class SavedSearchService(
 
     public async Task<SavedSearchModel> UpdateAsync(Guid id, UpdateSavedSearchCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var entity = await dbContext.SavedSearches.FirstOrDefaultAsync(s => s.Id == id, cancellationToken)
             ?? throw new NotFoundException(nameof(SavedSearch), id);
 

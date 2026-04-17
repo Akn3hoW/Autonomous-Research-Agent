@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AutonomousResearchAgent.Application.Common;
@@ -16,6 +17,8 @@ public sealed class HypothesisService(
 {
     public async Task<HypothesisResponse> CreateAsync(CreateHypothesisCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var entity = new Hypothesis
         {
             Title = command.Title,
@@ -74,6 +77,8 @@ public sealed class HypothesisService(
 
     public async Task<HypothesisResponse> UpdateAsync(Guid id, UpdateHypothesisCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var entity = await dbContext.Hypotheses
             .Include(h => h.HypothesisPapers)
             .FirstOrDefaultAsync(h => h.Id == id, cancellationToken)
@@ -93,6 +98,8 @@ public sealed class HypothesisService(
 
     public async Task<HypothesisResponse> UpdateStatusAsync(Guid id, UpdateHypothesisStatusCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var entity = await dbContext.Hypotheses
             .Include(h => h.HypothesisPapers)
                 .ThenInclude(hp => hp.Paper)
@@ -135,6 +142,8 @@ public sealed class HypothesisService(
 
     public async Task<HypothesisPaperResponse> AddPaperAsync(Guid hypothesisId, AddHypothesisPaperCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var hypothesis = await dbContext.Hypotheses
             .Include(h => h.HypothesisPapers)
             .FirstOrDefaultAsync(h => h.Id == hypothesisId, cancellationToken)

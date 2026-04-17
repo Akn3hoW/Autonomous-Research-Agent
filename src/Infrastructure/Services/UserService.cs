@@ -15,6 +15,7 @@ public sealed class UserService(
 {
     public async Task<PagedResult<UserModel>> ListAsync(UserQuery query, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(query);
         var users = dbContext.Users
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
@@ -61,6 +62,7 @@ public sealed class UserService(
 
     public async Task<UserModel> CreateAsync(CreateUserCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         if (await dbContext.Users.AnyAsync(u => u.Email == command.Email, cancellationToken))
         {
             throw new ConflictException($"User with email '{command.Email}' already exists.");
@@ -97,6 +99,7 @@ public sealed class UserService(
 
     public async Task<UserModel> UpdateAsync(Guid id, UpdateUserCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
         var user = await dbContext.Users
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)

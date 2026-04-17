@@ -81,6 +81,8 @@ public static class JobStatusHubExtensions
         string jobId,
         object jobStatus)
     {
+        ArgumentNullException.ThrowIfNull(hubContext);
+
         return hubContext.Clients.Group($"Job_{jobId}")
             .SendAsync("JobStatusChanged", jobStatus);
     }
@@ -90,6 +92,8 @@ public static class JobStatusHubExtensions
         string jobId,
         object jobStatus)
     {
+        ArgumentNullException.ThrowIfNull(hubContext);
+
         return hubContext.Clients.Group($"Job_{jobId}")
             .SendAsync("JobCompleted", jobStatus);
     }
@@ -99,6 +103,8 @@ public static class JobStatusHubExtensions
         string jobId,
         object jobStatus)
     {
+        ArgumentNullException.ThrowIfNull(hubContext);
+
         return hubContext.Clients.Group($"Job_{jobId}")
             .SendAsync("JobFailed", jobStatus);
     }
@@ -107,6 +113,8 @@ public static class JobStatusHubExtensions
         this IHubContext<JobStatusHub> hubContext,
         object jobStatus)
     {
+        ArgumentNullException.ThrowIfNull(hubContext);
+
         return hubContext.Clients.Group("Jobs")
             .SendAsync("JobStatusChanged", jobStatus);
     }
@@ -116,6 +124,8 @@ public static class JobStatusHubExtensions
         string userId,
         object jobStatus)
     {
+        ArgumentNullException.ThrowIfNull(hubContext);
+
         return hubContext.Clients.Group($"User_{userId}")
             .SendAsync("JobCompleted", jobStatus);
     }

@@ -61,6 +61,8 @@ public sealed class LiteratureReviewsController(ILiteratureReviewService literat
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<LiteratureReviewDto>> CreateReview([FromBody] CreateLiteratureReviewRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var userId = GetUserId();
         var command = new CreateLiteratureReviewCommand(request.Title, request.ResearchQuestion, request.PaperIds);
         var created = await literatureReviewService.CreateAsync(command, userId, cancellationToken);

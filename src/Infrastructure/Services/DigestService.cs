@@ -18,6 +18,8 @@ public sealed class DigestService(
 {
     public async Task<DigestModel> CreateDigestAsync(CreateDigestCommand command, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(command);
+
         var entity = new Digest
         {
             UserId = command.UserId,

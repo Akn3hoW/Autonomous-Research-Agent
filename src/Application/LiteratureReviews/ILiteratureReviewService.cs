@@ -7,6 +7,9 @@ public interface ILiteratureReviewService
     Task<IReadOnlyList<LiteratureReviewModel>> ListAsync(Guid userId, CancellationToken cancellationToken);
     Task<string> GenerateReviewContentAsync(Guid reviewId, CancellationToken cancellationToken);
     Task<string> ExportToMarkdownAsync(Guid reviewId, CancellationToken cancellationToken);
+    /// <summary>
+    /// Exports the literature review as markdown bytes. Note: Returns markdown content, not actual PDF.
+    /// </summary>
     Task<byte[]> ExportToPdfAsync(Guid reviewId, CancellationToken cancellationToken);
     Task DeleteAsync(Guid id, Guid userId, CancellationToken cancellationToken);
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json.Nodes;
 using AutonomousResearchAgent.Application.Common;
 using AutonomousResearchAgent.Application.Jobs;
@@ -25,6 +26,8 @@ public sealed class TrendAnalysisService(
 
     public async Task<TrendsResponse> GetTrendsAsync(TrendsRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var endYear = request.EndYear;
         var startYear = request.StartYear;
 
@@ -118,6 +121,11 @@ public sealed class TrendAnalysisService(
 
     public async Task<Guid> StartTrendAnalysisJobAsync(string? field, int startYear, int endYear, CancellationToken cancellationToken)
     {
+        if (startYear >= endYear)
+        {
+            throw new ArgumentException("startYear must be less than endYear.", nameof(startYear));
+        }
+
         var payload = new JsonObject
         {
             ["field"] = field ?? "",
